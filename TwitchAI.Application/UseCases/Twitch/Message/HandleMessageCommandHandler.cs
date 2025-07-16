@@ -111,6 +111,29 @@ internal class HandleMessageCommandHandler : ICommandHandler<HandleMessageComman
                         
                         break;
                     }
+                case ChangeRoleCommand changeRoleCmd:
+                    {
+                        var cmdResponse = await _mediator.Send(changeRoleCmd, cancellationToken);
+                        
+                        if (cmdResponse.Status == Common.Packages.Response.Enums.ResponseStatus.Success)
+                        {
+                            response.Result.Message = cmdResponse.Result;
+                        }
+                        else
+                        {
+                            _logger.LogError((int)BaseErrorCodes.OperationProcessError, new { 
+                                Method = nameof(Handle),
+                                Status = "Error",
+                                ErrorCode = cmdResponse.ErrorCode,
+                                Message = cmdResponse.ErrorObjects,
+                                Command = nameof(ChangeRoleCommand)
+                            });
+                            
+                            response.Result.Message = "❌ Произошла ошибка при смене роли. Попробуйте позже.";
+                        }
+                        
+                        break;
+                    }
                 case SoundChatCommand soundCmd:
                     {
                         var cmdResponse = await _mediator.Send(soundCmd, cancellationToken);

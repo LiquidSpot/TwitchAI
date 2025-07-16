@@ -81,11 +81,45 @@ internal sealed class TwitchIntegrationService : ITwitchIntegrationService, IDis
 
     public async Task<LSResponse<string>> SendMessage(ChatMessageDto response)
     {
+        _logger.LogInformation(new { 
+            Method = nameof(SendMessage),
+            HasMessage = !string.IsNullOrEmpty(response.Message),
+            Message = response.Message,
+            UserName = response.TwitchUser?.UserName,
+            IsClientConnected = _client?.IsConnected,
+            ChannelName = _configuration.ChannelName
+        });
+
         if (!string.IsNullOrEmpty(response.Message))
         {
-            _client?.SendMessage(_configuration.ChannelName, $"@{response.TwitchUser.UserName}: {response.Message}");
+            if (_client?.IsConnected == true)
+            {
+                _client.SendMessage(_configuration.ChannelName, $"@{response.TwitchUser.UserName}: {response.Message}");
+                _logger.LogInformation(new { 
+                    Method = nameof(SendMessage),
+                    Status = "Message sent successfully",
+                    Channel = _configuration.ChannelName,
+                    User = response.TwitchUser.UserName
+                });
+            }
+            else
+            {
+                _logger.LogError((int)OpenAiErrorCodes.EmptyResponse, new { 
+                    Method = nameof(SendMessage),
+                    Status = "Client not connected",
+                    IsConnected = _client?.IsConnected,
+                    Channel = _configuration.ChannelName
+                });
+            }
+            
             return new LSResponse<string>().Success(response.Message);
         }
+        
+        _logger.LogInformation(new { 
+            Method = nameof(SendMessage),
+            Status = "No message to send",
+            Message = response.Message
+        });
         
         return new LSResponse<string>().Success(string.Empty);
     }

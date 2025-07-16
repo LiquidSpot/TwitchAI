@@ -22,7 +22,7 @@ internal class OpenAiService : IOpenAiService
     private readonly ILSClientService _httpClient;
     private readonly IExternalLogger<OpenAiService> _logger;
     private readonly IOptions<AppConfiguration> _appConfig;
-    private const string _model = "o4-mini-2025-04-16";
+    private const string _model = "gpt-4.1-2025-04-14";
     
     // Константа для токенов
     private const int _maxTokens = 800; // Максимальное количество токенов для всех запросов (увеличено для o4-mini)

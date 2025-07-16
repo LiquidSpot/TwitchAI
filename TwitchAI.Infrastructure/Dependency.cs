@@ -62,6 +62,7 @@ public static class Dependency
             services.AddScoped<ITwitchUserService, TwitchUserService>();
             services.AddScoped<IUserMessageParser, UserMessageParser>();
             services.AddScoped<ITwitchIntegrationService, TwitchIntegrationService>();
+            services.AddSingleton<IBotRoleService, BotRoleService>();
 
             return services;
         });
@@ -102,7 +103,8 @@ public static class Dependency
                     .AddLSCommonLocalization<SRErrorCodes>()
                     .AddLSHttpClientConfiguration(configuration, errorMap);
 
-            services.AddLSHttpClientFactory(Constants.OpenAiClientKey, configs);
+            var polly = new PollyPolicies(3, 2, 60);
+            services.AddLSHttpClientFactory(Constants.OpenAiClientKey, configs, polly);
 
             return services;
         });

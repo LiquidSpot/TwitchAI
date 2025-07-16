@@ -16,28 +16,25 @@ namespace TwitchAI.Infrastructure.Services
         private static readonly Regex _full = new(FullCmd, RegexOptions.Compiled);
         private static readonly Regex _one = new(OneCmd, RegexOptions.Compiled);
 
-        private Role _currentRole = Role.Bot;
-        public Role CurrentRole => _currentRole;
+        private readonly IBotRoleService _botRoleService;
+
+        public UserMessageParser(IBotRoleService botRoleService)
+        {
+            _botRoleService = botRoleService ?? throw new ArgumentNullException(nameof(botRoleService));
+        }
+
+        public Role CurrentRole => _botRoleService.GetCurrentRole();
 
         public bool TryParse(string raw, out UserMessage usrMsg)
         {
-            usrMsg = new UserMessage { role = _currentRole };
+            usrMsg = new UserMessage { role = CurrentRole };
 
             if (string.IsNullOrWhiteSpace(raw))
                 return false;
 
             var parts = raw.Split(' ', 3, StringSplitOptions.RemoveEmptyEntries);
 
-            // --- смена дефолт-роли ---
-            if (parts.Length == 2 && Enum.TryParse(parts[1], true, out Role newRole))
-            {
-                _currentRole = newRole;
-                usrMsg.role = _currentRole;
-                usrMsg.message = $"Роль по умолчанию изменена на {_currentRole} 🐾";
-                return true;
-            }
-
-            // --- !ai Bot Привет ---
+            // --- !ai Bot Привет --- (временная роль для конкретного сообщения)
             if (parts.Length >= 3 && parts[0].Equals("!ai", StringComparison.OrdinalIgnoreCase)
                                   && Enum.TryParse(parts[1], true, out Role explicitRole))
             {

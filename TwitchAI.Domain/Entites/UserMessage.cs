@@ -8,7 +8,7 @@ namespace TwitchAI.Domain.Entites
     {
         public string message { get; set; } = string.Empty;
 
-        public Role role { get; set; } = Role.Bot;
+        public Role role { get; set; } = Role.bot;
 
         public double? temp { get; set; } = 0.3;
 

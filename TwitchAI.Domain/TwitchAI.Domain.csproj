@@ -12,7 +12,7 @@
     <PackageReference Include="Aspire.Npgsql" Version="9.1.0" />
     <PackageReference Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.1.0" />
     <PackageReference Include="Common.Packages.Extensions" Version="1.0.1" />
-    <PackageReference Include="Common.Packages.HttpClient" Version="1.0.5" />
+    <PackageReference Include="Common.Packages.HttpClient" Version="1.0.6" />
     <PackageReference Include="Common.Packages.Logger" Version="1.0.6" />
     <PackageReference Include="Common.Packages.Response" Version="1.0.5" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.2" />
