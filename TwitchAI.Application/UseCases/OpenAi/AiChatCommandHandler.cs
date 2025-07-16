@@ -1,0 +1,112 @@
+﻿using AutoMapper;
+using Common.Packages.Logger.Services.Interfaces;
+using Common.Packages.Response.Behaviors;
+using Common.Packages.Response.Enums;
+using Common.Packages.Response.Models;
+
+using TwitchAI.Application.Interfaces;
+using TwitchAI.Application.Interfaces.Infrastructure;
+using TwitchAI.Domain.Entites;
+using TwitchAI.Domain.Enums.ErrorCodes;
+
+namespace TwitchAI.Application.UseCases.OpenAi
+{
+    internal class AiChatCommandHandler : ICommandHandler<AiChatCommand, LSResponse<string>>
+    {
+        private readonly IOpenAiService _aiService;
+        private readonly ITwitchUserService _twitchUserService;
+        private readonly IExternalLogger<AiChatCommandHandler> _logger;
+
+        public AiChatCommandHandler(
+            IOpenAiService aiService,
+            ITwitchUserService twitchUserService,
+            IExternalLogger<AiChatCommandHandler> logger)
+        {
+            _aiService = aiService ?? throw new ArgumentNullException(nameof(aiService));
+            _twitchUserService = twitchUserService ?? throw new ArgumentNullException(nameof(twitchUserService));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        }
+
+        public async Task<LSResponse<string>> Handle(AiChatCommand request, CancellationToken cancellationToken)
+        {
+            _logger.LogInformation(new { 
+                Method = nameof(Handle),
+                UserId = request.userId,
+                Message = request.Message.message,
+                Role = request.Message.role
+            });
+
+            try
+            {
+                // Получаем пользователя для сохранения в контекст
+                var user = await _twitchUserService.GetUserByIdAsync(request.userId, cancellationToken);
+                if (user == null)
+                {
+                    _logger.LogError((int)BaseErrorCodes.DataNotFound, new { 
+                        Method = nameof(Handle),
+                        Status = "Error",
+                        Message = "User not found",
+                        UserId = request.userId
+                    });
+
+                    return new LSResponse<string>().Error(BaseErrorCodes.DataNotFound, "Пользователь не найден.");
+                }
+
+                // Получаем контекст диалога пользователя (последние 3 сообщения)
+                var conversationContext = await _twitchUserService.GetUserConversationContextAsync(user.Id, limit: 3, cancellationToken);
+
+                // Сохраняем сообщение пользователя в контекст диалога перед отправкой в OpenAI
+                await _twitchUserService.AddUserMessageToContextAsync(
+                    user, 
+                    request.Message.message, 
+                    request.chatMessageId, 
+                    cancellationToken);
+
+                // Используем универсальный метод с контекстом
+                var response = await _aiService.GenerateUniversalWithContextAsync(request.Message, conversationContext, ct: cancellationToken);
+
+                if (response.Status == ResponseStatus.Success && !string.IsNullOrWhiteSpace(response.Result))
+                {
+                    // Сохраняем ответ GPT в контекст диалога
+                    await _twitchUserService.AddGptResponseToContextAsync(
+                        user, 
+                        response.Result, 
+                        modelName: "o4-mini-2025-04-16", // Текущая модель из сервиса
+                        cancellationToken: cancellationToken);
+
+                    _logger.LogInformation(new { 
+                        Method = nameof(Handle),
+                        Status = "Success",
+                        UserId = request.userId,
+                        Content = response.Result
+                    });
+                }
+                else
+                {
+                    _logger.LogError((int)BaseErrorCodes.OperationProcessError, new { 
+                        Method = nameof(Handle),
+                        Status = "Error",
+                        UserId = request.userId,
+                        ErrorCode = response.ErrorCode,
+                        Message = response.ErrorObjects
+                    });
+                }
+
+                return response;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError((int)BaseErrorCodes.OperationProcessError, new { 
+                    Method = nameof(Handle),
+                    Status = "Exception",
+                    UserId = request.userId,
+                    Error = ex.GetType().Name,
+                    Message = ex.Message,
+                    StackTrace = ex.StackTrace
+                });
+
+                return new LSResponse<string>().Error(BaseErrorCodes.OperationProcessError, "Произошла ошибка при обработке запроса.");
+            }
+        }
+    }
+}
