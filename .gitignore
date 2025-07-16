@@ -427,3 +427,4 @@ local.settings.json
 **/appsettings.Development.json
 **/appsettings.Production.json
 **/appsettings.Local.json
+/TwitchAI.Api/appsettings.Development.json
