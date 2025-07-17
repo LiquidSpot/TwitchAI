@@ -25,7 +25,7 @@ internal class OpenAiService : IOpenAiService
     private const string _model = "gpt-4.1-2025-04-14";
     
     // Константа для токенов
-    private const int _maxTokens = 800; // Максимальное количество токенов для всех запросов (увеличено для o4-mini)
+    private const int _maxTokens = 512; // Максимальное количество токенов для всех запросов (увеличено для o4-mini)
     private const double _temp = 0.8;
     private RequestBuilder<object> _builder;
 

@@ -57,12 +57,12 @@ public static class Dependency
         {
             services.AddDataBaseConfiguration(configuration);
 
+            services.AddSingleton<IBotRoleService, BotRoleService>();
             services.AddSingleton<ISoundAlertsService, SoundAlertsService>();
             services.AddScoped<IOpenAiService, OpenAiService>();
             services.AddScoped<ITwitchUserService, TwitchUserService>();
             services.AddScoped<IUserMessageParser, UserMessageParser>();
             services.AddScoped<ITwitchIntegrationService, TwitchIntegrationService>();
-            services.AddSingleton<IBotRoleService, BotRoleService>();
 
             return services;
         });

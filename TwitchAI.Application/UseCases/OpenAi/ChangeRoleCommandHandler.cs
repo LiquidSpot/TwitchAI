@@ -41,7 +41,7 @@ namespace TwitchAI.Application.UseCases.OpenAi
                     var oldRoleName = GetRoleDisplayName(oldRole);
                     var newRoleName = GetRoleDisplayName(newRole);
 
-                    var message = $"✅ Роль бота изменена с {oldRoleName} на {newRoleName}!";
+                    var message = $"✅ Роль бота изменена с {oldRoleName} на {newRoleName} !";
                     
                     // Добавляем эмодзи в зависимости от роли
                     message += newRole switch
@@ -105,8 +105,8 @@ namespace TwitchAI.Application.UseCases.OpenAi
             {
                 Role.bot => "bot",
                 Role.neko => "neko",
-                Role.Toxic => "toxic",
-                Role.Durka => "durka",
+                Role.Toxic => "Toxic",
+                Role.Durka => "Durka",
                 _ => role.ToString().ToLower()
             };
         }
