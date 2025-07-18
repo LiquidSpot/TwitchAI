@@ -7,6 +7,9 @@ using MediatR;
 using TwitchAI.Application.Interfaces;
 using TwitchAI.Application.UseCases.OpenAi;
 using TwitchAI.Application.UseCases.Songs;
+using TwitchAI.Application.UseCases.Viewers;
+using TwitchAI.Application.UseCases.Holidays;
+using TwitchAI.Application.UseCases.Translation;
 using TwitchAI.Domain.Enums.ErrorCodes;
 
 namespace TwitchAI.Application.UseCases.Parser;
@@ -66,6 +69,43 @@ internal class ParseChatMessageQueryHandler : IQueryHandler<ParseChatMessageQuer
         //{
         //    return Task.FromResult<IChatCommand?>(new SongChatCommand());
         //}
+
+                    // Команда праздника дня
+            if (txt.StartsWith("!праздник", StringComparison.OrdinalIgnoreCase) ||
+                txt.StartsWith("!holiday", StringComparison.OrdinalIgnoreCase))
+            {
+                return new HolidayCommand(query.userId);
+            }
+
+            // Команда перевода
+            if (txt.StartsWith("!ru ", StringComparison.OrdinalIgnoreCase) ||
+                txt.StartsWith("!en ", StringComparison.OrdinalIgnoreCase) ||
+                txt.StartsWith("!zh ", StringComparison.OrdinalIgnoreCase) ||
+                txt.StartsWith("!ja ", StringComparison.OrdinalIgnoreCase) ||
+                txt.StartsWith("!es ", StringComparison.OrdinalIgnoreCase))
+            {
+                var parts = txt.Split(' ', 2);
+                if (parts.Length >= 2)
+                {
+                    var language = parts[0].Substring(1); // Убираем !
+                    var message = parts[1];
+                    return new TranslateCommand(language, message, query.userId);
+                }
+            }
+
+        // Команды статистики зрителей
+        if (txt.StartsWith("!viewers", StringComparison.OrdinalIgnoreCase) ||
+            txt.StartsWith("!silent", StringComparison.OrdinalIgnoreCase) ||
+            txt.StartsWith("!stats", StringComparison.OrdinalIgnoreCase))
+        {
+            var commandParts = txt.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+            var command = commandParts[0].Substring(1); // Убираем '!'
+            
+            if (ViewerStatsCommand.IsValidCommand(command))
+            {
+                return new ViewerStatsCommand(command, query.userId);
+            }
+        }
 
         if (txt.StartsWith('!'))
         {

@@ -17,6 +17,9 @@ using TwitchAI.Application.Models;
 using TwitchAI.Application.UseCases.OpenAi;
 using TwitchAI.Application.UseCases.Parser;
 using TwitchAI.Application.UseCases.Songs;
+using TwitchAI.Application.UseCases.Viewers;
+using TwitchAI.Application.UseCases.Holidays;
+using TwitchAI.Application.UseCases.Translation;
 using TwitchAI.Domain.Entites;
 using TwitchAI.Domain.Enums.ErrorCodes;
 
@@ -28,16 +31,22 @@ internal class HandleMessageCommandHandler : ICommandHandler<HandleMessageComman
     private readonly IExternalLogger<HandleMessageCommandHandler> _logger;
     public readonly ITwitchUserService _twitchUserService;
     private readonly ITwitchIntegrationService _twitch;
+    private readonly IGreetingService _greetingService;
+    private readonly IViewerMonitoringService _viewerMonitoringService;
 
     public HandleMessageCommandHandler(IMediator mediator, 
         IExternalLogger<HandleMessageCommandHandler> logger, 
         ITwitchUserService twitchUserService, 
-        ITwitchIntegrationService twitch)
+        ITwitchIntegrationService twitch,
+        IGreetingService greetingService,
+        IViewerMonitoringService viewerMonitoringService)
     {
         _mediator = mediator ?? throw new ArgumentNullException(nameof(mediator));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _twitch = twitch ?? throw new ArgumentNullException(nameof(twitch));
         _twitchUserService = twitchUserService ?? throw new ArgumentNullException(nameof(twitchUserService));
+        _greetingService = greetingService ?? throw new ArgumentNullException(nameof(greetingService));
+        _viewerMonitoringService = viewerMonitoringService ?? throw new ArgumentNullException(nameof(viewerMonitoringService));
     }
 
     public async Task<LSResponse<ChatMessageDto>> Handle(HandleMessageCommand request, CancellationToken cancellationToken)
@@ -60,7 +69,9 @@ internal class HandleMessageCommandHandler : ICommandHandler<HandleMessageComman
             return response.Success(); // Возвращаем успех, чтобы сообщение об ошибке отправилось в чат
         }
 
-        response.Result.TwitchUser = await _twitchUserService.GetOrCreateUserAsync(request.message, cancellationToken).ConfigureAwait(false);
+        // Используем новый метод с информацией о создании пользователя
+        var (user, wasUserCreated) = await _twitchUserService.GetOrCreateUserWithStatusAsync(request.message, cancellationToken).ConfigureAwait(false);
+        response.Result.TwitchUser = user;
         
         if (response.Result.TwitchUser == null)
         {
@@ -75,9 +86,43 @@ internal class HandleMessageCommandHandler : ICommandHandler<HandleMessageComman
             response.Result.Message = "❌ Ошибка: не удалось обработать пользователя.";
             return response.Success(); // Возвращаем успех, чтобы сообщение об ошибке отправилось в чат
         }
+
+        // Проверяем, нужно ли поздороваться с новым пользователем
+        if (_greetingService.ShouldGreetUser(response.Result.TwitchUser, wasUserCreated))
+        {
+            var greeting = _greetingService.GenerateGreeting(response.Result.TwitchUser);
+            
+            _logger.LogInformation(new { 
+                Method = nameof(Handle),
+                Status = "NewUserGreeting",
+                UserId = response.Result.TwitchUser.Id,
+                Username = response.Result.TwitchUser.UserName,
+                Greeting = greeting
+            });
+            
+            // Устанавливаем приветствие как сообщение для отправки
+            response.Result.Message = greeting;
+        }
         
         // Сохраняем сообщение из чата в базу данных
         var chatMessage = await _twitchUserService.AddMessage(response.Result.TwitchUser, request.message, cancellationToken).ConfigureAwait(false);
+
+        // Отмечаем пользователя как активного (написавшего сообщение)
+        try
+        {
+            await _viewerMonitoringService.MarkViewerAsActiveAsync(response.Result.TwitchUser.UserName, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            // Логируем ошибку, но не прерываем обработку сообщения
+            _logger.LogError((int)BaseErrorCodes.OperationProcessError, new { 
+                Method = nameof(Handle),
+                Status = "Error marking viewer as active",
+                Username = response.Result.TwitchUser.UserName,
+                Error = ex.GetType().Name,
+                Message = ex.Message
+            });
+        }
 
         var chatCmd = await _mediator.Send(new ParseChatMessageQuery(request.message, response.Result.TwitchUser.Id), cancellationToken);
 
@@ -94,7 +139,15 @@ internal class HandleMessageCommandHandler : ICommandHandler<HandleMessageComman
                         
                         if (cmdResponse.Status == Common.Packages.Response.Enums.ResponseStatus.Success)
                         {
-                            response.Result.Message = cmdResponse.Result;
+                            // Если у нас уже есть приветствие, объединяем его с ответом AI
+                            if (!string.IsNullOrEmpty(response.Result.Message))
+                            {
+                                response.Result.Message += " " + cmdResponse.Result;
+                            }
+                            else
+                            {
+                                response.Result.Message = cmdResponse.Result;
+                            }
                         }
                         else
                         {
@@ -106,7 +159,11 @@ internal class HandleMessageCommandHandler : ICommandHandler<HandleMessageComman
                                 Command = nameof(AiChatCommand)
                             });
                             
-                            response.Result.Message = "❌ Произошла ошибка при обработке команды. Попробуйте позже.";
+                            // Если у нас есть приветствие, но команда AI не удалась, все равно отправляем приветствие
+                            if (string.IsNullOrEmpty(response.Result.Message))
+                            {
+                                response.Result.Message = "❌ Произошла ошибка при обработке команды. Попробуйте позже.";
+                            }
                         }
                         
                         break;
@@ -117,7 +174,15 @@ internal class HandleMessageCommandHandler : ICommandHandler<HandleMessageComman
                         
                         if (cmdResponse.Status == Common.Packages.Response.Enums.ResponseStatus.Success)
                         {
-                            response.Result.Message = cmdResponse.Result;
+                            // Если у нас уже есть приветствие, объединяем его с ответом команды
+                            if (!string.IsNullOrEmpty(response.Result.Message))
+                            {
+                                response.Result.Message += " " + cmdResponse.Result;
+                            }
+                            else
+                            {
+                                response.Result.Message = cmdResponse.Result;
+                            }
                         }
                         else
                         {
@@ -129,7 +194,11 @@ internal class HandleMessageCommandHandler : ICommandHandler<HandleMessageComman
                                 Command = nameof(ChangeRoleCommand)
                             });
                             
-                            response.Result.Message = "❌ Произошла ошибка при смене роли. Попробуйте позже.";
+                            // Если у нас есть приветствие, но команда смены роли не удалась, все равно отправляем приветствие
+                            if (string.IsNullOrEmpty(response.Result.Message))
+                            {
+                                response.Result.Message = "❌ Произошла ошибка при смене роли. Попробуйте позже.";
+                            }
                         }
                         
                         break;
@@ -137,7 +206,123 @@ internal class HandleMessageCommandHandler : ICommandHandler<HandleMessageComman
                 case SoundChatCommand soundCmd:
                     {
                         var cmdResponse = await _mediator.Send(soundCmd, cancellationToken);
-                        response.Result.Message = cmdResponse.Result;
+                        
+                        // Если у нас уже есть приветствие, объединяем его с ответом команды
+                        if (!string.IsNullOrEmpty(response.Result.Message))
+                        {
+                            response.Result.Message += " " + cmdResponse.Result;
+                        }
+                        else
+                        {
+                            response.Result.Message = cmdResponse.Result;
+                        }
+                        break;
+                    }
+                case ViewerStatsCommand viewerStatsCmd:
+                    {
+                        var cmdResponse = await _mediator.Send(viewerStatsCmd, cancellationToken);
+                        
+                        if (cmdResponse.Status == Common.Packages.Response.Enums.ResponseStatus.Success)
+                        {
+                            // Если у нас уже есть приветствие, объединяем его с ответом команды
+                            if (!string.IsNullOrEmpty(response.Result.Message))
+                            {
+                                response.Result.Message += " " + cmdResponse.Result;
+                            }
+                            else
+                            {
+                                response.Result.Message = cmdResponse.Result;
+                            }
+                        }
+                        else
+                        {
+                            _logger.LogError((int)BaseErrorCodes.OperationProcessError, new { 
+                                Method = nameof(Handle),
+                                Status = "Error",
+                                ErrorCode = cmdResponse.ErrorCode,
+                                Message = cmdResponse.ErrorObjects,
+                                Command = nameof(ViewerStatsCommand)
+                            });
+                            
+                            // Если у нас есть приветствие, но команда статистики не удалась, все равно отправляем приветствие
+                            if (string.IsNullOrEmpty(response.Result.Message))
+                            {
+                                response.Result.Message = "❌ Произошла ошибка при получении статистики зрителей.";
+                            }
+                        }
+                        
+                        break;
+                    }
+                case HolidayCommand holidayCmd:
+                    {
+                        var cmdResponse = await _mediator.Send(holidayCmd, cancellationToken);
+                        
+                        if (cmdResponse.Status == Common.Packages.Response.Enums.ResponseStatus.Success)
+                        {
+                            // Если у нас уже есть приветствие, объединяем его с ответом команды
+                            if (!string.IsNullOrEmpty(response.Result.Message))
+                            {
+                                response.Result.Message += " " + cmdResponse.Result;
+                            }
+                            else
+                            {
+                                response.Result.Message = cmdResponse.Result;
+                            }
+                        }
+                        else
+                        {
+                            _logger.LogError((int)BaseErrorCodes.OperationProcessError, new { 
+                                Method = nameof(Handle),
+                                Status = "Error",
+                                ErrorCode = cmdResponse.ErrorCode,
+                                Message = cmdResponse.ErrorObjects,
+                                Command = nameof(HolidayCommand)
+                            });
+                            
+                            // Если у нас есть приветствие, но команда праздника не удалась, все равно отправляем приветствие
+                            if (string.IsNullOrEmpty(response.Result.Message))
+                            {
+                                response.Result.Message = "❌ Произошла ошибка при получении праздника дня.";
+                            }
+                        }
+                        
+                        break;
+                    }
+                case TranslateCommand translateCmd:
+                    {
+                        var cmdResponse = await _mediator.Send(translateCmd, cancellationToken);
+                        
+                        if (cmdResponse.Status == Common.Packages.Response.Enums.ResponseStatus.Success)
+                        {
+                            // Если у нас уже есть приветствие, объединяем его с ответом команды
+                            if (!string.IsNullOrEmpty(response.Result.Message))
+                            {
+                                response.Result.Message += " " + cmdResponse.Result;
+                            }
+                            else
+                            {
+                                response.Result.Message = cmdResponse.Result;
+                            }
+                        }
+                        else
+                        {
+                            _logger.LogError((int)BaseErrorCodes.OperationProcessError, new { 
+                                Method = nameof(Handle),
+                                Status = "Error",
+                                ErrorCode = cmdResponse.ErrorCode,
+                                Message = cmdResponse.ErrorObjects,
+                                Command = nameof(TranslateCommand),
+                                Language = translateCmd.Language,
+                                OriginalMessage = translateCmd.Message
+                            });
+                            
+                            // Если у нас есть приветствие, но команда перевода не удалась, все равно отправляем приветствие
+                            if (string.IsNullOrEmpty(response.Result.Message))
+                            {
+                                response.Result.Message = "❌ Произошла ошибка при переводе сообщения.";
+                            }
+                        }
+                        
                         break;
                     }
                 default:
@@ -148,7 +333,11 @@ internal class HandleMessageCommandHandler : ICommandHandler<HandleMessageComman
                             CommandType = chatCmd.GetType().Name
                         });
                         
-                        response.Result.Message = "❓ Неизвестная команда.";
+                        // Если у нас есть приветствие, но команда неизвестна, все равно отправляем приветствие
+                        if (string.IsNullOrEmpty(response.Result.Message))
+                        {
+                            response.Result.Message = "❓ Неизвестная команда.";
+                        }
                         break;
                     }
             }
@@ -158,11 +347,16 @@ internal class HandleMessageCommandHandler : ICommandHandler<HandleMessageComman
             _logger.LogInformation(new { 
                 Method = nameof(Handle),
                 Status = "NoCommand",
-                Message = "Message was not recognized as a command"
+                Message = "Message was not recognized as a command",
+                HasGreeting = !string.IsNullOrEmpty(response.Result.Message)
             });
             
-            // Если команда не распознана, не отправляем сообщение в чат
-            response.Result.Message = null;
+            // Если команда не распознана, но есть приветствие - отправляем его
+            // Если команды и приветствия нет - не отправляем ничего
+            if (string.IsNullOrEmpty(response.Result.Message))
+            {
+                response.Result.Message = null;
+            }
         }
 
         return response.Success();

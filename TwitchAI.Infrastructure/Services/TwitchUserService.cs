@@ -28,23 +28,37 @@ namespace TwitchAI.Infrastructure.Services
         // TODO: not like this do Segregate agregation
         public async Task<TwitchUser> GetOrCreateUserAsync(TwitchLib.Client.Models.ChatMessage message, CancellationToken ct = default)
         {
+            var (user, _) = await GetOrCreateUserWithStatusAsync(message, ct);
+            return user;
+        }
+
+        public async Task<(TwitchUser User, bool WasCreated)> GetOrCreateUserWithStatusAsync(TwitchLib.Client.Models.ChatMessage message, CancellationToken ct = default)
+        {
             var id = message.UserId;
             var user = await _repository
                             .Query()
                             .FirstOrDefaultAsync(u => u.TwitchId == id, ct);
 
+            bool wasCreated = false;
+
             if (user is null)
             {
                 user = NewUserFrom(message);
+                wasCreated = true;
+                
                 try
                 {
                     await _repository.AddAsync(user, ct);
-                    return user;
+                    return (user, wasCreated);
                 }
                 catch (DbUpdateException)
                 {
-                    return await _repository.Query()
+                    // Если произошла ошибка при создании (например, race condition), 
+                    // получаем существующего пользователя
+                    user = await _repository.Query()
                                             .FirstAsync(u => u.TwitchId == id, ct);
+                    wasCreated = false;
+                    return (user, wasCreated);
                 }
             }
 
@@ -63,7 +77,7 @@ namespace TwitchAI.Infrastructure.Services
 
             await _repository.Update(user, ct, true);
 
-            return user;
+            return (user, wasCreated);
         }
 
         public async Task<ChatMessage> AddMessage(TwitchUser user, TwitchLib.Client.Models.ChatMessage message, CancellationToken cancellationToken)

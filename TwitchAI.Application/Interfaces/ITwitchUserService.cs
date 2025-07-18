@@ -8,6 +8,15 @@ namespace TwitchAI.Application.Interfaces
     public interface ITwitchUserService
     {
         Task<TwitchUser> GetOrCreateUserAsync(TwitchLib.Client.Models.ChatMessage message, CancellationToken cancellationToken);
+        
+        /// <summary>
+        /// Получить или создать пользователя с информацией о том, был ли он создан
+        /// </summary>
+        /// <param name="message">Сообщение из чата</param>
+        /// <param name="cancellationToken">Токен отмены</param>
+        /// <returns>Кортеж: пользователь и флаг создания</returns>
+        Task<(TwitchUser User, bool WasCreated)> GetOrCreateUserWithStatusAsync(TwitchLib.Client.Models.ChatMessage message, CancellationToken cancellationToken);
+        
         Task<ChatMessage> AddMessage(TwitchUser user, TwitchLib.Client.Models.ChatMessage message, CancellationToken cancellationToken);
         
         /// <summary>
