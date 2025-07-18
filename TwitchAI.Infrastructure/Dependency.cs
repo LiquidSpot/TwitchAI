@@ -59,10 +59,14 @@ public static class Dependency
 
             services.AddSingleton<IBotRoleService, BotRoleService>();
             services.AddSingleton<ISoundAlertsService, SoundAlertsService>();
+            services.AddScoped<IGreetingService, GreetingService>();
             services.AddScoped<IOpenAiService, OpenAiService>();
             services.AddScoped<ITwitchUserService, TwitchUserService>();
             services.AddScoped<IUserMessageParser, UserMessageParser>();
             services.AddScoped<ITwitchIntegrationService, TwitchIntegrationService>();
+            services.AddScoped<IViewerMonitoringService, ViewerMonitoringService>();
+            services.AddScoped<IHolidayService, HolidayService>();
+            services.AddHostedService<ViewerMonitoringBackgroundService>();
 
             return services;
         });
@@ -105,6 +109,8 @@ public static class Dependency
 
             var polly = new PollyPolicies(3, 2, 60);
             services.AddLSHttpClientFactory(Constants.OpenAiClientKey, configs, polly);
+            services.AddLSHttpClientFactory(Constants.TwitchApiClientKey, configs, polly);
+            services.AddLSHttpClientFactory(Constants.OpenHolidaysApiClientKey, configs, polly);
 
             return services;
         });
