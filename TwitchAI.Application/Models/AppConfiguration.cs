@@ -6,6 +6,9 @@ namespace TwitchAI.Application.Models
     {
         public bool MigrateDb { get; set; }
         public string SoundAlerts { get; set; }
+
+        public string Facts { get; set; }
+
         public int CooldownSecounds { get; set; }
         
         /// <summary>

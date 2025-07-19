@@ -10,6 +10,7 @@ using TwitchAI.Application.UseCases.Songs;
 using TwitchAI.Application.UseCases.Viewers;
 using TwitchAI.Application.UseCases.Holidays;
 using TwitchAI.Application.UseCases.Translation;
+using TwitchAI.Application.UseCases.Facts;
 using TwitchAI.Domain.Enums.ErrorCodes;
 
 namespace TwitchAI.Application.UseCases.Parser;
@@ -91,6 +92,13 @@ internal class ParseChatMessageQueryHandler : IQueryHandler<ParseChatMessageQuer
                     var message = parts[1];
                     return new TranslateCommand(language, message, query.userId);
                 }
+            }
+
+            // Команда фактов
+            if (txt.StartsWith("!факт", StringComparison.OrdinalIgnoreCase) ||
+                txt.StartsWith("!fact", StringComparison.OrdinalIgnoreCase))
+            {
+                return new FactCommand(query.userId);
             }
 
         // Команды статистики зрителей
