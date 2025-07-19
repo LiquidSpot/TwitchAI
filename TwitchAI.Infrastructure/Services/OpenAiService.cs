@@ -22,11 +22,10 @@ internal class OpenAiService : IOpenAiService
     private readonly ILSClientService _httpClient;
     private readonly IExternalLogger<OpenAiService> _logger;
     private readonly IOptions<AppConfiguration> _appConfig;
-    private const string _model = "gpt-4.1-2025-04-14";
-    
-    // Константа для токенов
-    private const int _maxTokens = 512; // Максимальное количество токенов для всех запросов (увеличено для o4-mini)
-    private const double _temp = 0.8;
+    // Настройки берутся из конфигурации
+    private readonly string _model;
+    private readonly int _maxTokens;
+    private readonly double _temp;
     private RequestBuilder<object> _builder;
 
     public OpenAiService(ILSClientService httpClient, IExternalLogger<OpenAiService> logger, IOptions<AppConfiguration> appConfig)
@@ -34,6 +33,11 @@ internal class OpenAiService : IOpenAiService
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _appConfig = appConfig ?? throw new ArgumentNullException(nameof(appConfig));
+
+        // Инициализируем настройки из конфигурации
+        _model = _appConfig.Value.OpenAi.Model;
+        _maxTokens = _appConfig.Value.OpenAi.MaxTokens;
+        _temp = _appConfig.Value.OpenAi.Temperature;
 
         _builder = new RequestBuilder<object>()
            .WithHeaders(new Dictionary<string, string>

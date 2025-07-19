@@ -228,7 +228,10 @@ namespace TwitchAI.Infrastructure.Services
                     }
                 }
 
-                // Отмечаем неактивных зрителей
+                // Сохраняем изменения активных зрителей перед обработкой неактивных
+                await _uow.SaveChangesAsync(cancellationToken);
+
+                // Отмечаем неактивных зрителей - используем новый запрос после сохранения изменений
                 var inactiveViewers = await _viewerPresenceRepository.Query()
                     .Where(vp => vp.ChannelName == channelName && 
                                  vp.IsActive && 
@@ -248,6 +251,7 @@ namespace TwitchAI.Infrastructure.Services
                     await _viewerPresenceRepository.Update(inactiveViewer, cancellationToken);
                 }
 
+                // Сохраняем изменения неактивных зрителей
                 await _uow.SaveChangesAsync(cancellationToken);
 
                 _logger.LogInformation(new { 

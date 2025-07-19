@@ -397,6 +397,7 @@ internal class HandleMessageCommandHandler : ICommandHandler<HandleMessageComman
                         
                         break;
                     }
+
                 default:
                     {
                         _logger.LogInformation(new { 

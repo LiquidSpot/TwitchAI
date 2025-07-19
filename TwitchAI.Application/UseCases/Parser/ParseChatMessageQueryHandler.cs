@@ -13,6 +13,9 @@ using TwitchAI.Application.UseCases.Translation;
 using TwitchAI.Application.UseCases.Facts;
 using TwitchAI.Application.UseCases.Compliment;
 using TwitchAI.Domain.Enums.ErrorCodes;
+using TwitchAI.Domain.Entites;
+using Microsoft.Extensions.Options;
+using TwitchAI.Application.Models;
 
 namespace TwitchAI.Application.UseCases.Parser;
 
@@ -22,17 +25,20 @@ internal class ParseChatMessageQueryHandler : IQueryHandler<ParseChatMessageQuer
     private readonly IExternalLogger<ParseChatMessageQueryHandler> _logger;
     private readonly IUserMessageParser _parser;
     private readonly IBotRoleService _botRoleService;
+    private readonly AppConfiguration _appConfig;
 
     public ParseChatMessageQueryHandler(
         IMediator mediator, 
         IExternalLogger<ParseChatMessageQueryHandler> logger, 
         IUserMessageParser parser,
-        IBotRoleService botRoleService)
+        IBotRoleService botRoleService,
+        IOptions<AppConfiguration> appConfig)
     {
         _mediator = mediator ?? throw new ArgumentNullException(nameof(mediator));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _parser = parser ?? throw new ArgumentNullException(nameof(parser));
         _botRoleService = botRoleService ?? throw new ArgumentNullException(nameof(botRoleService));
+        _appConfig = appConfig?.Value ?? throw new ArgumentNullException(nameof(appConfig));
     }
 
     [SuppressMessage("ReSharper", "AsyncConverter.ConfigureAwaitHighlighting")]
@@ -40,6 +46,32 @@ internal class ParseChatMessageQueryHandler : IQueryHandler<ParseChatMessageQuer
     {
         var txt = query.RawMessage?.Message.Trim();
         if (string.IsNullOrWhiteSpace(txt)) throw new LSException(BaseErrorCodes.DataNotFound);
+
+        // Проверяем, является ли это reply сообщением (нужно извлекать из RawIrcMessage)
+        string? replyParentMessageId = ExtractReplyParentMessageId(query.RawMessage);
+        if (!string.IsNullOrEmpty(replyParentMessageId))
+        {
+            _logger.LogInformation(new { 
+                Method = nameof(Handle),
+                Status = "ReplyDetected",
+                UserId = query.userId,
+                ReplyParentMessageId = replyParentMessageId,
+                Message = txt
+            });
+
+            // Создаем UserMessage для reply
+            var userMessage = new UserMessage 
+            { 
+                message = txt,
+                role = _botRoleService.GetCurrentRole(),
+                temp = _appConfig.OpenAi.Temperature,
+                maxToken = _appConfig.OpenAi.MaxTokens
+            };
+
+            // Создаем AiChatCommand для обработки reply с контекстом
+            // chatMessageId будет установлен позже в HandleMessageCommandHandler
+            return new AiChatCommand(userMessage, query.userId, null);
+        }
 
         // Проверяем команду смены роли: !ai rolename (без дополнительного текста)
         if (txt.StartsWith("!ai", StringComparison.OrdinalIgnoreCase) ||
@@ -138,5 +170,44 @@ internal class ParseChatMessageQueryHandler : IQueryHandler<ParseChatMessageQuer
         }
 
         return default;
+    }
+
+    /// <summary>
+    /// Извлекает reply-parent-msg-id из IRC сообщения
+    /// </summary>
+    private static string? ExtractReplyParentMessageId(TwitchLib.Client.Models.ChatMessage? message)
+    {
+        if (message?.RawIrcMessage == null) return null;
+
+        try
+        {
+            var rawMessage = message.RawIrcMessage;
+            if (rawMessage.Contains("reply-parent-msg-id="))
+            {
+                var replyTagStart = rawMessage.IndexOf("reply-parent-msg-id=");
+                if (replyTagStart != -1)
+                {
+                    var valueStart = replyTagStart + "reply-parent-msg-id=".Length;
+                    var semicolonIndex = rawMessage.IndexOf(';', valueStart);
+                    var spaceIndex = rawMessage.IndexOf(' ', valueStart);
+                    
+                    var valueEnd = Math.Min(
+                        semicolonIndex == -1 ? int.MaxValue : semicolonIndex,
+                        spaceIndex == -1 ? int.MaxValue : spaceIndex
+                    );
+                    
+                    if (valueEnd != int.MaxValue && valueEnd > valueStart)
+                    {
+                        return rawMessage.Substring(valueStart, valueEnd - valueStart);
+                    }
+                }
+            }
+        }
+        catch
+        {
+            // Если не удалось извлечь, возвращаем null
+        }
+
+        return null;
     }
 }

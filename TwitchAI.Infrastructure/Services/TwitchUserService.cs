@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using TwitchAI.Application.Interfaces;
 using TwitchAI.Application.Interfaces.Infrastructure;
 using TwitchAI.Domain.Entites;
+using TwitchAI.Domain.Enums.ErrorCodes;
 
 namespace TwitchAI.Infrastructure.Services
 {
@@ -203,6 +204,138 @@ namespace TwitchAI.Infrastructure.Services
             return count;
         }
 
+        public async Task<List<ConversationMessage>> GetReplyChainContextAsync(string replyParentMessageId, Guid userId, int limit = 3, CancellationToken cancellationToken = default)
+        {
+            _logger.LogInformation(new { 
+                Method = nameof(GetReplyChainContextAsync),
+                ReplyParentMessageId = replyParentMessageId,
+                UserId = userId,
+                Limit = limit
+            });
+
+            try
+            {
+                // Ищем ChatMessage по MessageId, на которое отвечают
+                var parentChatMessage = await _repositoryMsg.Query()
+                    .FirstOrDefaultAsync(cm => cm.MessageId == replyParentMessageId, cancellationToken);
+
+                if (parentChatMessage == null)
+                {
+                    _logger.LogWarning(new { 
+                        Method = nameof(GetReplyChainContextAsync),
+                        Status = "ParentMessageNotFound",
+                        ReplyParentMessageId = replyParentMessageId,
+                        UserId = userId
+                    });
+                    return new List<ConversationMessage>();
+                }
+
+                // Ищем ConversationMessage, связанное с этим ChatMessage
+                var parentConversationMessage = await _repositoryConversation.Query()
+                    .Where(cm => cm.ChatMessageId == parentChatMessage.Id)
+                    .OrderByDescending(cm => cm.MessageOrder)
+                    .FirstOrDefaultAsync(cancellationToken);
+
+                if (parentConversationMessage == null)
+                {
+                    _logger.LogWarning(new { 
+                        Method = nameof(GetReplyChainContextAsync),
+                        Status = "ParentConversationMessageNotFound",
+                        ReplyParentMessageId = replyParentMessageId,
+                        UserId = userId,
+                        ParentChatMessageId = parentChatMessage.Id
+                    });
+                    return new List<ConversationMessage>();
+                }
+
+                // Получаем контекст диалога начиная от родительского сообщения
+                var messages = await _repositoryConversation.Query()
+                    .Where(m => m.TwitchUserId == userId && m.MessageOrder <= parentConversationMessage.MessageOrder)
+                    .OrderByDescending(m => m.MessageOrder)
+                    .Take(limit * 2) // Берем больше, чтобы получить полные пары user-assistant
+                    .OrderBy(m => m.MessageOrder)
+                    .ToListAsync(cancellationToken);
+
+                _logger.LogInformation(new { 
+                    Method = nameof(GetReplyChainContextAsync),
+                    UserId = userId,
+                    ReplyParentMessageId = replyParentMessageId,
+                    MessagesFound = messages.Count,
+                    ParentMessageOrder = parentConversationMessage.MessageOrder,
+                    Messages = messages.Select(m => new { m.Role, m.Content, m.MessageOrder })
+                });
+
+                return messages;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError((int)BaseErrorCodes.OperationProcessError, new { 
+                    Method = nameof(GetReplyChainContextAsync),
+                    Status = "Exception",
+                    ReplyParentMessageId = replyParentMessageId,
+                    UserId = userId,
+                    Error = ex.GetType().Name,
+                    Message = ex.Message,
+                    StackTrace = ex.StackTrace
+                });
+
+                return new List<ConversationMessage>();
+            }
+        }
+
+        public async Task<bool> IsReplyToBotMessageAsync(string replyParentMessageId, CancellationToken cancellationToken = default)
+        {
+            _logger.LogInformation(new { 
+                Method = nameof(IsReplyToBotMessageAsync),
+                ReplyParentMessageId = replyParentMessageId
+            });
+
+            try
+            {
+                // Ищем ChatMessage по MessageId
+                var parentChatMessage = await _repositoryMsg.Query()
+                    .FirstOrDefaultAsync(cm => cm.MessageId == replyParentMessageId, cancellationToken);
+
+                if (parentChatMessage == null)
+                {
+                    _logger.LogInformation(new { 
+                        Method = nameof(IsReplyToBotMessageAsync),
+                        Status = "ParentMessageNotFound",
+                        ReplyParentMessageId = replyParentMessageId,
+                        Result = false
+                    });
+                    return false;
+                }
+
+                // Проверяем, есть ли ConversationMessage с ролью "assistant", связанное с этим ChatMessage
+                var isBotMessage = await _repositoryConversation.Query()
+                    .AnyAsync(cm => cm.ChatMessageId == parentChatMessage.Id && cm.Role == "assistant", cancellationToken);
+
+                _logger.LogInformation(new { 
+                    Method = nameof(IsReplyToBotMessageAsync),
+                    Status = "Success",
+                    ReplyParentMessageId = replyParentMessageId,
+                    ParentChatMessageId = parentChatMessage.Id,
+                    IsBotMessage = isBotMessage
+                });
+
+                return isBotMessage;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError((int)BaseErrorCodes.OperationProcessError, new { 
+                    Method = nameof(IsReplyToBotMessageAsync),
+                    Status = "Exception",
+                    ReplyParentMessageId = replyParentMessageId,
+                    Error = ex.GetType().Name,
+                    Message = ex.Message,
+                    StackTrace = ex.StackTrace
+                });
+
+                return false;
+            }
+        }
+
         /// <summary>
         /// Получить следующий порядковый номер сообщения для пользователя
         /// </summary>
@@ -217,27 +350,105 @@ namespace TwitchAI.Infrastructure.Services
             return lastOrder + 1;
         }
 
-        private static ChatMessage NewChatMessageFrom(TwitchLib.Client.Models.ChatMessage m, Guid userId) => new()
+        public async Task<ChatMessage?> GetChatMessageByIdAsync(Guid chatMessageId, CancellationToken cancellationToken = default)
         {
-            TwitchUserId = userId,
-            MessageId = m.Id,
-            Channel = m.Channel,
-            RoomId = m.RoomId,
-            Text = m.Message,
-            EmoteReplacedText = m.EmoteReplacedMessage,
-            Bits = m.Bits,
-            BitsUsd = m.BitsInDollars,
-            IsFirstMessage = m.IsFirstMessage,
-            IsHighlighted = m.IsHighlighted,
-            IsMeAction = m.IsMe,
-            IsSkippingSubMode = m.IsSkippingSubMode,
-            IsModerator = m.IsModerator,
-            IsSubscriber = m.IsSubscriber,
-            IsBroadcaster = m.IsBroadcaster,
-            IsTurbo = m.IsTurbo,
-            RawTagsJson = JsonSerializer.Serialize(m.RawIrcMessage),
-            TmiSentTs = m.TmiSentTs
-        };
+            _logger.LogInformation(new { 
+                Method = nameof(GetChatMessageByIdAsync),
+                ChatMessageId = chatMessageId
+            });
+
+            try
+            {
+                var chatMessage = await _repositoryMsg.Query()
+                    .FirstOrDefaultAsync(cm => cm.Id == chatMessageId, cancellationToken);
+
+                _logger.LogInformation(new { 
+                    Method = nameof(GetChatMessageByIdAsync),
+                    ChatMessageId = chatMessageId,
+                    Found = chatMessage != null,
+                    IsReply = chatMessage?.IsReply,
+                    ReplyParentMessageId = chatMessage?.ReplyParentMessageId
+                });
+
+                return chatMessage;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError((int)BaseErrorCodes.OperationProcessError, new { 
+                    Method = nameof(GetChatMessageByIdAsync),
+                    Status = "Exception",
+                    ChatMessageId = chatMessageId,
+                    Error = ex.GetType().Name,
+                    Message = ex.Message,
+                    StackTrace = ex.StackTrace
+                });
+
+                return null;
+            }
+        }
+
+        private static ChatMessage NewChatMessageFrom(TwitchLib.Client.Models.ChatMessage m, Guid userId)
+        {
+            // Извлекаем информацию о reply
+            string? replyParentMessageId = null;
+            bool isReply = false;
+
+            try
+            {
+                // Попробуем найти reply информацию в RawIrcMessage (строка)
+                var rawMessage = m.RawIrcMessage;
+                if (!string.IsNullOrEmpty(rawMessage) && rawMessage.Contains("reply-parent-msg-id="))
+                {
+                    // Парсим reply-parent-msg-id из строки IRC сообщения
+                    var replyTagStart = rawMessage.IndexOf("reply-parent-msg-id=");
+                    if (replyTagStart != -1)
+                    {
+                        var valueStart = replyTagStart + "reply-parent-msg-id=".Length;
+                        var semicolonIndex = rawMessage.IndexOf(';', valueStart);
+                        var spaceIndex = rawMessage.IndexOf(' ', valueStart);
+                        
+                        var valueEnd = Math.Min(
+                            semicolonIndex == -1 ? int.MaxValue : semicolonIndex,
+                            spaceIndex == -1 ? int.MaxValue : spaceIndex
+                        );
+                        
+                        if (valueEnd != int.MaxValue && valueEnd > valueStart)
+                        {
+                            replyParentMessageId = rawMessage.Substring(valueStart, valueEnd - valueStart);
+                            isReply = !string.IsNullOrEmpty(replyParentMessageId);
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // Если не удалось извлечь информацию о reply, продолжаем без неё
+            }
+
+            return new ChatMessage
+            {
+                TwitchUserId = userId,
+                MessageId = m.Id,
+                Channel = m.Channel,
+                RoomId = m.RoomId,
+                IsReply = isReply,
+                ReplyParentMessageId = replyParentMessageId,
+                Text = m.Message,
+                EmoteReplacedText = m.EmoteReplacedMessage,
+                Bits = m.Bits,
+                BitsUsd = m.BitsInDollars,
+                IsFirstMessage = m.IsFirstMessage,
+                IsHighlighted = m.IsHighlighted,
+                IsMeAction = m.IsMe,
+                IsSkippingSubMode = m.IsSkippingSubMode,
+                IsModerator = m.IsModerator,
+                IsSubscriber = m.IsSubscriber,
+                IsBroadcaster = m.IsBroadcaster,
+                IsTurbo = m.IsTurbo,
+                RawTagsJson = JsonSerializer.Serialize(m.RawIrcMessage),
+                TmiSentTs = m.TmiSentTs
+            };
+        }
 
         private static TwitchUser NewUserFrom(TwitchLib.Client.Models.ChatMessage m) => new()
         {

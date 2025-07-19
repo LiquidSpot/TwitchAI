@@ -11,9 +11,15 @@ namespace TwitchAI.Domain.Entites
         /*------------- «паспорт» сообщения ----------------------*/
         /// <summary>Уникальный <c>id</c>, который TMI выдаёт каждому сообщению.</summary>
         public string MessageId { get; set; } = null!;      // tag  id
-        /// <summary>Канал, куда пришло сообщение (lower-case, без ‘#’).</summary>
+        /// <summary>Канал, куда пришло сообщение (lower-case, без '#').</summary>
         public string Channel { get; set; } = null!;
         public string RoomId { get; set; } = null!;      // tag room-id
+
+        /*------------- reply functionality ----------------------*/
+        /// <summary>Является ли это сообщение ответом на другое сообщение</summary>
+        public bool IsReply { get; set; }
+        /// <summary>ID сообщения, на которое отвечают (reply-parent-msg-id)</summary>
+        public string? ReplyParentMessageId { get; set; }
 
         /*------------- контент ----------------------------------*/
         public string Text { get; set; } = null!;

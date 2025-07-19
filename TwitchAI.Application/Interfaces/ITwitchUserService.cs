@@ -65,5 +65,31 @@ namespace TwitchAI.Application.Interfaces
         /// <param name="cancellationToken">Токен отмены</param>
         /// <returns>Количество удаленных сообщений</returns>
         Task<int> ClearUserConversationContextAsync(Guid userId, CancellationToken cancellationToken = default);
+        
+        /// <summary>
+        /// Получить reply-цепочку сообщений для контекста (последние 3 reply между пользователем и ботом)
+        /// </summary>
+        /// <param name="replyParentMessageId">ID сообщения, на которое отвечают</param>
+        /// <param name="userId">ID пользователя</param>
+        /// <param name="limit">Максимальное количество сообщений в контексте</param>
+        /// <param name="cancellationToken">Токен отмены</param>
+        /// <returns>Список сообщений reply-цепочки</returns>
+        Task<List<ConversationMessage>> GetReplyChainContextAsync(string replyParentMessageId, Guid userId, int limit = 3, CancellationToken cancellationToken = default);
+        
+        /// <summary>
+        /// Проверить, является ли сообщение ответом на сообщение от бота
+        /// </summary>
+        /// <param name="replyParentMessageId">ID сообщения, на которое отвечают</param>
+        /// <param name="cancellationToken">Токен отмены</param>
+        /// <returns>True, если это reply на сообщение бота</returns>
+        Task<bool> IsReplyToBotMessageAsync(string replyParentMessageId, CancellationToken cancellationToken = default);
+        
+        /// <summary>
+        /// Получить сообщение чата по ID
+        /// </summary>
+        /// <param name="chatMessageId">ID сообщения чата</param>
+        /// <param name="cancellationToken">Токен отмены</param>
+        /// <returns>Сообщение чата или null если не найдено</returns>
+        Task<ChatMessage?> GetChatMessageByIdAsync(Guid chatMessageId, CancellationToken cancellationToken = default);
     }
 }

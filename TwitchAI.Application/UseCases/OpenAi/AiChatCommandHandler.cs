@@ -33,7 +33,8 @@ namespace TwitchAI.Application.UseCases.OpenAi
                 Method = nameof(Handle),
                 UserId = request.userId,
                 Message = request.Message.message,
-                Role = request.Message.role
+                Role = request.Message.role,
+                ChatMessageId = request.chatMessageId
             });
 
             try
@@ -52,8 +53,51 @@ namespace TwitchAI.Application.UseCases.OpenAi
                     return new LSResponse<string>().Error(BaseErrorCodes.DataNotFound, "Пользователь не найден.");
                 }
 
-                // Получаем контекст диалога пользователя (последние 3 сообщения)
-                var conversationContext = await _twitchUserService.GetUserConversationContextAsync(user.Id, limit: 3, cancellationToken);
+                // Определяем, какой контекст использовать
+                List<ConversationMessage> conversationContext;
+                
+                // Если есть ChatMessageId, проверяем, является ли это reply на сообщение бота
+                if (request.chatMessageId.HasValue)
+                {
+                    var chatMessage = await _twitchUserService.GetChatMessageByIdAsync(request.chatMessageId.Value, cancellationToken);
+                    if (chatMessage?.IsReply == true && !string.IsNullOrEmpty(chatMessage.ReplyParentMessageId))
+                    {
+                        // Проверяем, является ли это reply на сообщение бота
+                        var isReplyToBot = await _twitchUserService.IsReplyToBotMessageAsync(chatMessage.ReplyParentMessageId, cancellationToken);
+                        if (isReplyToBot)
+                        {
+                            // Используем reply-цепочку для контекста
+                            conversationContext = await _twitchUserService.GetReplyChainContextAsync(
+                                chatMessage.ReplyParentMessageId, 
+                                user.Id, 
+                                limit: 3, 
+                                cancellationToken);
+                                
+                            _logger.LogInformation(new { 
+                                Method = nameof(Handle),
+                                Status = "UsingReplyContext",
+                                UserId = request.userId,
+                                ReplyParentMessageId = chatMessage.ReplyParentMessageId,
+                                ContextMessagesCount = conversationContext.Count
+                            });
+                        }
+                        else
+                        {
+                            // Обычный контекст диалога пользователя
+                            conversationContext = await _twitchUserService.GetUserConversationContextAsync(user.Id, limit: 3, cancellationToken);
+                        }
+                    }
+                    else
+                    {
+                        // Обычный контекст диалога пользователя
+                        conversationContext = await _twitchUserService.GetUserConversationContextAsync(user.Id, limit: 3, cancellationToken);
+                    }
+                }
+                else
+                {
+                    // Получаем обычный контекст диалога пользователя (последние 3 сообщения)
+                    conversationContext = await _twitchUserService.GetUserConversationContextAsync(user.Id, limit: 3, cancellationToken);
+                }
 
                 // Сохраняем сообщение пользователя в контекст диалога перед отправкой в OpenAI
                 await _twitchUserService.AddUserMessageToContextAsync(
