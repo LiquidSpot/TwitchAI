@@ -11,6 +11,7 @@ using TwitchAI.Application.UseCases.Viewers;
 using TwitchAI.Application.UseCases.Holidays;
 using TwitchAI.Application.UseCases.Translation;
 using TwitchAI.Application.UseCases.Facts;
+using TwitchAI.Application.UseCases.Compliment;
 using TwitchAI.Domain.Enums.ErrorCodes;
 
 namespace TwitchAI.Application.UseCases.Parser;
@@ -99,6 +100,22 @@ internal class ParseChatMessageQueryHandler : IQueryHandler<ParseChatMessageQuer
                 txt.StartsWith("!fact", StringComparison.OrdinalIgnoreCase))
             {
                 return new FactCommand(query.userId);
+            }
+
+            // Команда комплиментов
+            if (txt.StartsWith("!комплимент", StringComparison.OrdinalIgnoreCase) ||
+                txt.StartsWith("!compliment", StringComparison.OrdinalIgnoreCase))
+            {
+                var parts = txt.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+                string? targetUsername = null;
+                
+                // Проверяем, есть ли указанный пользователь
+                if (parts.Length > 1)
+                {
+                    targetUsername = parts[1].Trim();
+                }
+                
+                return new ComplimentCommand(query.userId, targetUsername);
             }
 
         // Команды статистики зрителей
