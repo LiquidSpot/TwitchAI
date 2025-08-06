@@ -15,15 +15,18 @@ namespace TwitchAI.Application.UseCases.OpenAi
     {
         private readonly IOpenAiService _aiService;
         private readonly ITwitchUserService _twitchUserService;
+        private readonly IReplyLimitService _replyLimitService;
         private readonly IExternalLogger<AiChatCommandHandler> _logger;
 
         public AiChatCommandHandler(
             IOpenAiService aiService,
             ITwitchUserService twitchUserService,
+            IReplyLimitService replyLimitService,
             IExternalLogger<AiChatCommandHandler> logger)
         {
             _aiService = aiService ?? throw new ArgumentNullException(nameof(aiService));
             _twitchUserService = twitchUserService ?? throw new ArgumentNullException(nameof(twitchUserService));
+            _replyLimitService = replyLimitService ?? throw new ArgumentNullException(nameof(replyLimitService));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
@@ -62,30 +65,26 @@ namespace TwitchAI.Application.UseCases.OpenAi
                     var chatMessage = await _twitchUserService.GetChatMessageByIdAsync(request.chatMessageId.Value, cancellationToken);
                     if (chatMessage?.IsReply == true && !string.IsNullOrEmpty(chatMessage.ReplyParentMessageId))
                     {
-                        // Проверяем, является ли это reply на сообщение бота
-                        var isReplyToBot = await _twitchUserService.IsReplyToBotMessageAsync(chatMessage.ReplyParentMessageId, cancellationToken);
-                        if (isReplyToBot)
-                        {
-                            // Используем reply-цепочку для контекста
-                            conversationContext = await _twitchUserService.GetReplyChainContextAsync(
-                                chatMessage.ReplyParentMessageId, 
-                                user.Id, 
-                                limit: 3, 
-                                cancellationToken);
-                                
-                            _logger.LogInformation(new { 
-                                Method = nameof(Handle),
-                                Status = "UsingReplyContext",
-                                UserId = request.userId,
-                                ReplyParentMessageId = chatMessage.ReplyParentMessageId,
-                                ContextMessagesCount = conversationContext.Count
-                            });
-                        }
-                        else
-                        {
-                            // Обычный контекст диалога пользователя
-                            conversationContext = await _twitchUserService.GetUserConversationContextAsync(user.Id, limit: 3, cancellationToken);
-                        }
+                        // Если это reply сообщение и команда дошла сюда, значит это reply на сообщение бота
+                        // (проверка уже выполнена в ParseChatMessageQueryHandler)
+                        // Получаем персональный лимит пользователя для reply-цепочки
+                        var replyLimit = await _replyLimitService.GetReplyLimitAsync(user.Id, cancellationToken);
+                        
+                        // Используем reply-цепочку для контекста с персональным лимитом
+                        conversationContext = await _twitchUserService.GetReplyChainContextAsync(
+                            chatMessage.ReplyParentMessageId, 
+                            user.Id, 
+                            limit: replyLimit, 
+                            cancellationToken);
+                            
+                        _logger.LogInformation(new { 
+                            Method = nameof(Handle),
+                            Status = "UsingReplyContext",
+                            UserId = request.userId,
+                            ReplyParentMessageId = chatMessage.ReplyParentMessageId,
+                            ReplyLimit = replyLimit,
+                            ContextMessagesCount = conversationContext.Count
+                        });
                     }
                     else
                     {

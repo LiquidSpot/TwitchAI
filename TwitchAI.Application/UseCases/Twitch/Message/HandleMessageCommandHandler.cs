@@ -205,6 +205,41 @@ internal class HandleMessageCommandHandler : ICommandHandler<HandleMessageComman
                         
                         break;
                     }
+                case ReplyLimitCommand replyLimitCmd:
+                    {
+                        var cmdResponse = await _mediator.Send(replyLimitCmd, cancellationToken);
+                        
+                        if (cmdResponse.Status == Common.Packages.Response.Enums.ResponseStatus.Success)
+                        {
+                            // Если у нас уже есть приветствие, объединяем его с ответом команды
+                            if (!string.IsNullOrEmpty(response.Result.Message))
+                            {
+                                response.Result.Message += " " + cmdResponse.Result;
+                            }
+                            else
+                            {
+                                response.Result.Message = cmdResponse.Result;
+                            }
+                        }
+                        else
+                        {
+                            _logger.LogError((int)BaseErrorCodes.OperationProcessError, new { 
+                                Method = nameof(Handle),
+                                Status = "Error",
+                                ErrorCode = cmdResponse.ErrorCode,
+                                Message = cmdResponse.ErrorObjects,
+                                Command = nameof(ReplyLimitCommand)
+                            });
+                            
+                            // Если у нас есть приветствие, но команда не удалась, все равно отправляем приветствие
+                            if (string.IsNullOrEmpty(response.Result.Message))
+                            {
+                                response.Result.Message = "❌ Произошла ошибка при установке лимита reply. Попробуйте позже.";
+                            }
+                        }
+                        
+                        break;
+                    }
                 case SoundChatCommand soundCmd:
                     {
                         var cmdResponse = await _mediator.Send(soundCmd, cancellationToken);

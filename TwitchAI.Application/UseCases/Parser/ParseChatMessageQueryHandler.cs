@@ -25,6 +25,7 @@ internal class ParseChatMessageQueryHandler : IQueryHandler<ParseChatMessageQuer
     private readonly IExternalLogger<ParseChatMessageQueryHandler> _logger;
     private readonly IUserMessageParser _parser;
     private readonly IBotRoleService _botRoleService;
+    private readonly ITwitchUserService _twitchUserService;
     private readonly AppConfiguration _appConfig;
 
     public ParseChatMessageQueryHandler(
@@ -32,12 +33,14 @@ internal class ParseChatMessageQueryHandler : IQueryHandler<ParseChatMessageQuer
         IExternalLogger<ParseChatMessageQueryHandler> logger, 
         IUserMessageParser parser,
         IBotRoleService botRoleService,
+        ITwitchUserService twitchUserService,
         IOptions<AppConfiguration> appConfig)
     {
         _mediator = mediator ?? throw new ArgumentNullException(nameof(mediator));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _parser = parser ?? throw new ArgumentNullException(nameof(parser));
         _botRoleService = botRoleService ?? throw new ArgumentNullException(nameof(botRoleService));
+        _twitchUserService = twitchUserService ?? throw new ArgumentNullException(nameof(twitchUserService));
         _appConfig = appConfig?.Value ?? throw new ArgumentNullException(nameof(appConfig));
     }
 
@@ -59,18 +62,45 @@ internal class ParseChatMessageQueryHandler : IQueryHandler<ParseChatMessageQuer
                 Message = txt
             });
 
-            // Создаем UserMessage для reply
-            var userMessage = new UserMessage 
-            { 
-                message = txt,
-                role = _botRoleService.GetCurrentRole(),
-                temp = _appConfig.OpenAi.Temperature,
-                maxToken = _appConfig.OpenAi.MaxTokens
-            };
+            // Проверяем, является ли это reply на сообщение бота
+            var isReplyToBot = await _twitchUserService.IsReplyToBotMessageAsync(replyParentMessageId, cancellation);
+            
+            if (isReplyToBot)
+            {
+                _logger.LogInformation(new { 
+                    Method = nameof(Handle),
+                    Status = "ReplyToBotDetected",
+                    UserId = query.userId,
+                    ReplyParentMessageId = replyParentMessageId,
+                    Message = txt
+                });
 
-            // Создаем AiChatCommand для обработки reply с контекстом
-            // chatMessageId будет установлен позже в HandleMessageCommandHandler
-            return new AiChatCommand(userMessage, query.userId, null);
+                // Создаем UserMessage для reply на сообщение бота
+                var userMessage = new UserMessage 
+                { 
+                    message = txt,
+                    role = _botRoleService.GetCurrentRole(),
+                    temp = _appConfig.OpenAi.Temperature,
+                    maxToken = _appConfig.OpenAi.MaxTokens
+                };
+
+                // Создаем AiChatCommand для обработки reply с контекстом
+                // chatMessageId будет установлен позже в HandleMessageCommandHandler
+                return new AiChatCommand(userMessage, query.userId, null);
+            }
+            else
+            {
+                _logger.LogInformation(new { 
+                    Method = nameof(Handle),
+                    Status = "ReplyToUserIgnored",
+                    UserId = query.userId,
+                    ReplyParentMessageId = replyParentMessageId,
+                    Message = txt
+                });
+
+                // Это reply на сообщение пользователя, не обрабатываем как AI команду
+                return null;
+            }
         }
 
         // Проверяем команду смены роли: !ai rolename (без дополнительного текста)
@@ -94,6 +124,20 @@ internal class ParseChatMessageQueryHandler : IQueryHandler<ParseChatMessageQuer
             }
 
             return default;
+        }
+
+        // Команда установки лимита reply-цепочки
+        if (txt.StartsWith("!reply-limit", StringComparison.OrdinalIgnoreCase))
+        {
+            var parts = txt.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            
+            if (parts.Length == 2 && int.TryParse(parts[1], out var limit))
+            {
+                return new ReplyLimitCommand(limit, query.userId);
+            }
+            
+            // Если формат команды неверный, возвращаем null (команда не будет обработана)
+            return null;
         }
 
         // --- song / sound aliases handled the same way as before ---

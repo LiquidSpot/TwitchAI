@@ -59,6 +59,8 @@ public static class Dependency
 
             services.AddSingleton<IBotRoleService, BotRoleService>();
             services.AddSingleton<ISoundAlertsService, SoundAlertsService>();
+            services.AddSingleton<IReplyLimitService, ReplyLimitService>();
+
             services.AddScoped<IGreetingService, GreetingService>();
             services.AddScoped<IOpenAiService, OpenAiService>();
             services.AddScoped<ITwitchUserService, TwitchUserService>();
