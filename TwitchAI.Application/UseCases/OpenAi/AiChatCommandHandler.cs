@@ -6,6 +6,7 @@ using Common.Packages.Response.Models;
 
 using TwitchAI.Application.Interfaces;
 using TwitchAI.Application.Interfaces.Infrastructure;
+using TwitchAI.Application.Models;
 using TwitchAI.Domain.Entites;
 using TwitchAI.Domain.Enums.ErrorCodes;
 
@@ -105,23 +106,27 @@ namespace TwitchAI.Application.UseCases.OpenAi
                     request.chatMessageId, 
                     cancellationToken);
 
-                // Используем универсальный метод с контекстом
-                var response = await _aiService.GenerateUniversalWithContextAsync(request.Message, conversationContext, ct: cancellationToken);
+                // Используем универсальный метод с контекстом и персональным движком пользователя
+                var response = await _aiService.GenerateUniversalWithContextAsync(request.Message, conversationContext, user.Id, ct: cancellationToken);
 
                 if (response.Status == ResponseStatus.Success && !string.IsNullOrWhiteSpace(response.Result))
                 {
                     // Сохраняем ответ GPT в контекст диалога
-                    await _twitchUserService.AddGptResponseToContextAsync(
+                    var conversationMessage = await _twitchUserService.AddGptResponseToContextAsync(
                         user, 
                         response.Result, 
                         modelName: "o4-mini-2025-04-16", // Текущая модель из сервиса
                         cancellationToken: cancellationToken);
 
+                    // Сохраняем ConversationMessageId в контекст для передачи в HandleMessageCommandHandler
+                    ConversationContext.ConversationMessageId = conversationMessage.Id;
+
                     _logger.LogInformation(new { 
                         Method = nameof(Handle),
                         Status = "Success",
                         UserId = request.userId,
-                        Content = response.Result
+                        Content = response.Result,
+                        ConversationMessageId = conversationMessage.Id
                     });
                 }
                 else

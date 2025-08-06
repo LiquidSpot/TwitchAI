@@ -13,6 +13,7 @@ using TwitchAI.Application.Dto.Response;
 using TwitchAI.Application.Interfaces;
 using TwitchAI.Application.Models;
 using TwitchAI.Application.UseCases.Twitch.Message;
+using TwitchAI.Domain.Entites;
 using TwitchAI.Domain.Enums.ErrorCodes;
 
 using TwitchLib.Client;
@@ -67,6 +68,13 @@ internal sealed class TwitchIntegrationService : ITwitchIntegrationService, IDis
         _client.OnJoinedChannel += (_, e) => _logger.LogDebug(new { Connected = e.Channel });
         _client.OnConnected += Client_OnConnected;
         _client.OnMessageReceived += Client_OnMessageReceived;
+        
+        // Настройка для получения собственных сообщений
+        _client.OnMessageSent += Client_OnMessageSent;
+        
+        // Обработка USERSTATE сообщений после отправки собственных сообщений
+        _client.OnUserStateChanged += Client_OnUserStateChanged;
+        
         _client.Initialize(credentials, _configuration.ChannelName);
         _client.Connect();
         
@@ -79,7 +87,98 @@ internal sealed class TwitchIntegrationService : ITwitchIntegrationService, IDis
         _client?.JoinChannel(_configuration.ChannelName);
     }
 
-    public async Task<LSResponse<string>> SendMessage(ChatMessageDto response)
+    private void Client_OnMessageSent(object? sender, OnMessageSentArgs e)
+    {
+        _logger.LogInformation(new
+        {
+            Method = nameof(Client_OnMessageSent),
+            Status = "BotMessageSent",
+            Message = e.SentMessage.Message,
+            Channel = e.SentMessage.Channel,
+            BotUsername = _configuration.BotUsername
+        });
+        
+        // OnMessageSent не предоставляет MessageId, используем USERSTATE для получения реального ID
+    }
+
+    private void Client_OnUserStateChanged(object? sender, OnUserStateChangedArgs e)
+    {
+        _logger.LogInformation(new
+        {
+            Method = nameof(Client_OnUserStateChanged),
+            Status = "UserStateChanged",
+            Channel = e.UserState.Channel,
+            BotUsername = e.UserState.DisplayName,
+            ConfiguredBotUsername = _configuration.BotUsername,
+            IsBotUserState = string.Equals(e.UserState.DisplayName, _configuration.BotUsername, StringComparison.OrdinalIgnoreCase)
+        });
+
+        // USERSTATE приходит после отправки собственного сообщения
+        // Но в нем нет MessageId отправленного сообщения, поэтому нужна другая стратегия
+    }
+
+    private async Task SaveBotMessageAsync(string message)
+    {
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var twitchUserService = scope.ServiceProvider.GetRequiredService<ITwitchUserService>();
+            
+            // Сохраняем сообщение бота с временным MessageId (реальный ID недоступен по спецификации IRC)
+            var botSentMessage = new TwitchAI.Application.Models.BotSentMessage
+            {
+                Channel = _configuration.ChannelName,
+                Message = message
+            };
+            
+            var chatMessage = await twitchUserService.SaveBotMessageAsync(botSentMessage, CancellationToken.None);
+
+            // Связываем с ConversationMessage если есть (делаем это сразу)
+            if (ConversationContext.ConversationMessageId.HasValue)
+            {
+                var linked = await twitchUserService.LinkConversationWithBotMessageAsync(
+                    ConversationContext.ConversationMessageId.Value, 
+                    chatMessage.Id, 
+                    CancellationToken.None
+                );
+                
+                _logger.LogInformation(new
+                {
+                    Method = nameof(SaveBotMessageAsync),
+                    Status = linked ? "ConversationLinkedSuccessfully" : "ConversationLinkFailed",
+                    ConversationMessageId = ConversationContext.ConversationMessageId.Value,
+                    BotChatMessageId = chatMessage.Id,
+                    TemporaryMessageId = chatMessage.MessageId,
+                    Note = "Using temporary MessageId as real MessageId is not available via IRC for bot's own messages"
+                });
+                
+                // Очищаем контекст после использования
+                ConversationContext.ConversationMessageId = null;
+            }
+            else
+            {
+                _logger.LogInformation(new
+                {
+                    Method = nameof(SaveBotMessageAsync),
+                    Status = "BotMessageSavedWithoutConversationLink",
+                    BotChatMessageId = chatMessage.Id,
+                    TemporaryMessageId = chatMessage.MessageId
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError((int)BaseErrorCodes.InternalServerError, new
+            {
+                Method = nameof(SaveBotMessageAsync),
+                Status = "Failed",
+                Error = ex.Message,
+                Message = message
+            });
+        }
+    }
+
+    public async Task<LSResponse<Domain.Entites.ChatMessage?>> SendMessage(ChatMessageDto response)
     {
         _logger.LogInformation(new
         {
@@ -125,10 +224,14 @@ internal sealed class TwitchIntegrationService : ITwitchIntegrationService, IDis
 
                             _logger.LogInformation(new
                             {
+                                Method = nameof(SendMessage),
                                 Status = "Message part sent successfully",
                                 User = response.TwitchUser.UserName,
                                 PartNumber = partNumber,
-                                TotalParts = totalParts
+                                TotalParts = totalParts,
+                                SentMessage = messageToSend,
+                                BotUsername = _configuration.BotUsername,
+                                ConversationMessageId = ConversationContext.ConversationMessageId
                             });
                         }
                         catch (Exception ex)
@@ -150,6 +253,10 @@ internal sealed class TwitchIntegrationService : ITwitchIntegrationService, IDis
                         if (i < messageParts.Count - 1) { await Task.Delay(2000); }
                     }
                    
+                    // Сохраняем сообщение бота с временным MessageId для reply
+                    await SaveBotMessageAsync(response.Message);
+                    
+                    return new LSResponse<Domain.Entites.ChatMessage?>().Success(null);
                 }
                 catch (Exception ex)
                 {
@@ -174,7 +281,7 @@ internal sealed class TwitchIntegrationService : ITwitchIntegrationService, IDis
                 });
             }
 
-            return new LSResponse<string>().Success(response.Message);
+            return new LSResponse<Domain.Entites.ChatMessage?>().Success(null);
         }
 
         _logger.LogInformation(new
@@ -184,7 +291,7 @@ internal sealed class TwitchIntegrationService : ITwitchIntegrationService, IDis
             Message = response.Message
         });
 
-        return new LSResponse<string>().Success(string.Empty);
+        return new LSResponse<Domain.Entites.ChatMessage?>().Success(null);
     }
 
     /// <summary>
@@ -309,11 +416,42 @@ internal sealed class TwitchIntegrationService : ITwitchIntegrationService, IDis
         {
             try
             {
+                _logger.LogInformation(new
+                {
+                    Method = nameof(HandleMessageAsync),
+                    Status = "MessageReceived",
+                    Username = e.ChatMessage.Username,
+                    ConfiguredBotUsername = _configuration.BotUsername,
+                    MessageId = e.ChatMessage.Id,
+                    Message = e.ChatMessage.Message,
+                    UsernameEquals = string.Equals(e.ChatMessage.Username, _configuration.BotUsername, StringComparison.OrdinalIgnoreCase),
+                    UsernameCompare = $"'{e.ChatMessage.Username}' vs '{_configuration.BotUsername}'"
+                });
+
+                // По спецификации IRC боты НЕ получают свои собственные сообщения через OnMessageReceived
+                // Поэтому эта проверка никогда не сработает - это нормально
+                if (string.Equals(e.ChatMessage.Username, _configuration.BotUsername, StringComparison.OrdinalIgnoreCase))
+                {
+                    _logger.LogWarning(new
+                    {
+                        Method = nameof(HandleMessageAsync),
+                        Status = "UnexpectedBotMessageReceived",
+                        MessageId = e.ChatMessage.Id,
+                        Message = e.ChatMessage.Message,
+                        BotUsername = e.ChatMessage.Username,
+                        Note = "This should not happen according to IRC specification"
+                    });
+
+                    return; // Не обрабатываем сообщения бота как команды
+                }
+
                 var response =
                     await mediator.Send(new HandleMessageCommand(e.ChatMessage));
                 
                 if(response.Result.Message is not null)
-                    await SendMessage(response.Result).ConfigureAwait(false);
+                {
+                    var sendResult = await SendMessage(response.Result).ConfigureAwait(false);
+                }
             }
             catch (Exception ex)
             {
@@ -325,6 +463,8 @@ internal sealed class TwitchIntegrationService : ITwitchIntegrationService, IDis
             }
         }
     }
+
+
 
     public void Dispose()
     {

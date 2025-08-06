@@ -150,6 +150,9 @@ internal class HandleMessageCommandHandler : ICommandHandler<HandleMessageComman
                             {
                                 response.Result.Message = cmdResponse.Result;
                             }
+                            
+                            // Передаем ConversationMessageId для последующей связи с ChatMessage бота
+                            response.Result.ConversationMessageId = ConversationContext.ConversationMessageId;
                         }
                         else
                         {
@@ -235,6 +238,41 @@ internal class HandleMessageCommandHandler : ICommandHandler<HandleMessageComman
                             if (string.IsNullOrEmpty(response.Result.Message))
                             {
                                 response.Result.Message = "❌ Произошла ошибка при установке лимита reply. Попробуйте позже.";
+                            }
+                        }
+                        
+                        break;
+                    }
+                case EngineCommand engineCmd:
+                    {
+                        var cmdResponse = await _mediator.Send(engineCmd, cancellationToken);
+                        
+                        if (cmdResponse.Status == Common.Packages.Response.Enums.ResponseStatus.Success)
+                        {
+                            // Если у нас уже есть приветствие, объединяем его с ответом команды
+                            if (!string.IsNullOrEmpty(response.Result.Message))
+                            {
+                                response.Result.Message += " " + cmdResponse.Result;
+                            }
+                            else
+                            {
+                                response.Result.Message = cmdResponse.Result;
+                            }
+                        }
+                        else
+                        {
+                            _logger.LogError((int)BaseErrorCodes.OperationProcessError, new { 
+                                Method = nameof(Handle),
+                                Status = "Error",
+                                ErrorCode = cmdResponse.ErrorCode,
+                                Message = cmdResponse.ErrorObjects,
+                                Command = nameof(EngineCommand)
+                            });
+                            
+                            // Если у нас есть приветствие, но команда не удалась, все равно отправляем приветствие
+                            if (string.IsNullOrEmpty(response.Result.Message))
+                            {
+                                response.Result.Message = "❌ Произошла ошибка при смене движка. Попробуйте позже.";
                             }
                         }
                         

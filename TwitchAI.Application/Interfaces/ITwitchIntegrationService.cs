@@ -9,5 +9,5 @@ public interface ITwitchIntegrationService
 {
     Task<LSResponse> InitializeClientAsync(ConnectionCredentials credentials);
 
-    Task<LSResponse<string>> SendMessage(ChatMessageDto response);
+    Task<LSResponse<TwitchAI.Domain.Entites.ChatMessage?>> SendMessage(ChatMessageDto response);
 }

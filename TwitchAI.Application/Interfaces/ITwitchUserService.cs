@@ -45,9 +45,10 @@ namespace TwitchAI.Application.Interfaces
         /// <param name="openAiResponseId">ID ответа OpenAI</param>
         /// <param name="modelName">Название модели</param>
         /// <param name="tokenCount">Количество токенов</param>
+        /// <param name="chatMessageId">ID сообщения чата бота (для связи с ChatMessage)</param>
         /// <param name="cancellationToken">Токен отмены</param>
         /// <returns>Созданное сообщение в контексте</returns>
-        Task<ConversationMessage> AddGptResponseToContextAsync(TwitchUser user, string gptResponse, string? openAiResponseId = null, string? modelName = null, int? tokenCount = null, CancellationToken cancellationToken = default);
+        Task<ConversationMessage> AddGptResponseToContextAsync(TwitchUser user, string gptResponse, string? openAiResponseId = null, string? modelName = null, int? tokenCount = null, Guid? chatMessageId = null, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Получить последние сообщения пользователя для контекста (по умолчанию 3 последних)
@@ -91,5 +92,38 @@ namespace TwitchAI.Application.Interfaces
         /// <param name="cancellationToken">Токен отмены</param>
         /// <returns>Сообщение чата или null если не найдено</returns>
         Task<ChatMessage?> GetChatMessageByIdAsync(Guid chatMessageId, CancellationToken cancellationToken = default);
+        
+        /// <summary>
+        /// Получить сообщение чата по MessageId от Twitch
+        /// </summary>
+        /// <param name="messageId">MessageId от Twitch</param>
+        /// <param name="cancellationToken">Токен отмены</param>
+        /// <returns>Сообщение чата или null если не найдено</returns>
+        Task<ChatMessage?> GetChatMessageByMessageIdAsync(string messageId, CancellationToken cancellationToken = default);
+        
+        /// <summary>
+        /// Сохранить сообщение бота как ChatMessage для возможности reply
+        /// </summary>
+        /// <param name="sentMessage">Отправленное сообщение бота</param>
+        /// <param name="cancellationToken">Токен отмены</param>
+        /// <returns>Созданное сообщение чата</returns>
+        Task<ChatMessage> SaveBotMessageAsync(TwitchAI.Application.Models.BotSentMessage sentMessage, CancellationToken cancellationToken = default);
+        
+        /// <summary>
+        /// Связать ConversationMessage с ChatMessage бота
+        /// </summary>
+        /// <param name="conversationMessageId">ID сообщения в контексте диалога</param>
+        /// <param name="botChatMessageId">ID сообщения чата бота</param>
+        /// <param name="cancellationToken">Токен отмены</param>
+        /// <returns>True если связь установлена успешно</returns>
+        Task<bool> LinkConversationWithBotMessageAsync(Guid conversationMessageId, Guid botChatMessageId, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Найти conversation по временному MessageId из ChatMessage
+        /// </summary>
+        /// <param name="tempMessageId">Временный MessageId из ChatMessage</param>
+        /// <param name="cancellationToken">Токен отмены</param>
+        /// <returns>ConversationMessage если найдено, иначе null</returns>
+        Task<ConversationMessage?> FindConversationByTempMessageIdAsync(string tempMessageId, CancellationToken cancellationToken = default);
     }
 }

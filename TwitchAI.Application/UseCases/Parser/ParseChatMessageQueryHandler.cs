@@ -62,45 +62,92 @@ internal class ParseChatMessageQueryHandler : IQueryHandler<ParseChatMessageQuer
                 Message = txt
             });
 
-            // Проверяем, является ли это reply на сообщение бота
-            var isReplyToBot = await _twitchUserService.IsReplyToBotMessageAsync(replyParentMessageId, cancellation);
-            
-            if (isReplyToBot)
+            // Проверяем, есть ли обращение к OpenAI в сообщении
+            if (IsOpenAiRequest(txt))
             {
-                _logger.LogInformation(new { 
-                    Method = nameof(Handle),
-                    Status = "ReplyToBotDetected",
-                    UserId = query.userId,
-                    ReplyParentMessageId = replyParentMessageId,
-                    Message = txt
-                });
+                // Ищем существующий conversation по временному MessageId
+                var existingConversation = await _twitchUserService.FindConversationByTempMessageIdAsync(replyParentMessageId, cancellation);
+                
+                if (existingConversation != null)
+                {
+                    _logger.LogInformation(new { 
+                        Method = nameof(Handle),
+                        Status = "ReplyToExistingConversation",
+                        UserId = query.userId,
+                        ReplyParentMessageId = replyParentMessageId,
+                        ExistingConversationId = existingConversation.Id,
+                        Message = txt
+                    });
 
-                // Создаем UserMessage для reply на сообщение бота
-                var userMessage = new UserMessage 
-                { 
-                    message = txt,
-                    role = _botRoleService.GetCurrentRole(),
-                    temp = _appConfig.OpenAi.Temperature,
-                    maxToken = _appConfig.OpenAi.MaxTokens
-                };
+                    // Создаем UserMessage для продолжения существующего диалога
+                    var userMessage = new UserMessage 
+                    { 
+                        message = txt,
+                        role = _botRoleService.GetCurrentRole(),
+                        temp = _appConfig.OpenAi.Temperature,
+                        maxToken = _appConfig.OpenAi.MaxTokens
+                    };
 
-                // Создаем AiChatCommand для обработки reply с контекстом
-                // chatMessageId будет установлен позже в HandleMessageCommandHandler
-                return new AiChatCommand(userMessage, query.userId, null);
+                    // Создаем AiChatCommand с указанием на существующий диалог
+                    return new AiChatCommand(userMessage, query.userId, null);
+                }
+                else
+                {
+                    _logger.LogInformation(new { 
+                        Method = nameof(Handle),
+                        Status = "ReplyWithOpenAiRequestNewConversation",
+                        UserId = query.userId,
+                        ReplyParentMessageId = replyParentMessageId,
+                        Message = txt
+                    });
+
+                    // Создаем новый диалог с OpenAI
+                    var userMessage = new UserMessage 
+                    { 
+                        message = txt,
+                        role = _botRoleService.GetCurrentRole(),
+                        temp = _appConfig.OpenAi.Temperature,
+                        maxToken = _appConfig.OpenAi.MaxTokens
+                    };
+
+                    return new AiChatCommand(userMessage, query.userId, null);
+                }
             }
             else
             {
                 _logger.LogInformation(new { 
                     Method = nameof(Handle),
-                    Status = "ReplyToUserIgnored",
+                    Status = "ReplyWithoutOpenAiRequest",
                     UserId = query.userId,
                     ReplyParentMessageId = replyParentMessageId,
                     Message = txt
                 });
 
-                // Это reply на сообщение пользователя, не обрабатываем как AI команду
+                // Это reply без обращения к AI, не обрабатываем
                 return null;
             }
+        }
+
+        // Проверяем обычные сообщения с упоминанием бота (mention)
+        if (IsOpenAiRequest(txt))
+        {
+            _logger.LogInformation(new { 
+                Method = nameof(Handle),
+                Status = "MentionDetected",
+                UserId = query.userId,
+                Message = txt
+            });
+
+            // Создаем UserMessage для обработки mention
+            var userMessage = new UserMessage 
+            { 
+                message = txt,
+                role = _botRoleService.GetCurrentRole(),
+                temp = _appConfig.OpenAi.Temperature,
+                maxToken = _appConfig.OpenAi.MaxTokens
+            };
+
+            return new AiChatCommand(userMessage, query.userId, null);
         }
 
         // Проверяем команду смены роли: !ai rolename (без дополнительного текста)
@@ -138,6 +185,20 @@ internal class ParseChatMessageQueryHandler : IQueryHandler<ParseChatMessageQuer
             
             // Если формат команды неверный, возвращаем null (команда не будет обработана)
             return null;
+        }
+
+        // Команда смены движка OpenAI
+        if (txt.StartsWith("!engine", StringComparison.OrdinalIgnoreCase))
+        {
+            var parts = txt.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            
+            if (parts.Length == 2 && !string.IsNullOrWhiteSpace(parts[1]))
+            {
+                return new EngineCommand(parts[1].Trim(), query.userId);
+            }
+            
+            // Если формат команды неверный, возвращаем команду с пустым названием для показа ошибки
+            return new EngineCommand("", query.userId);
         }
 
         // --- song / sound aliases handled the same way as before ---
@@ -253,5 +314,29 @@ internal class ParseChatMessageQueryHandler : IQueryHandler<ParseChatMessageQuer
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Проверяет, содержит ли сообщение обращение к OpenAI
+    /// </summary>
+    private static bool IsOpenAiRequest(string message)
+    {
+        if (string.IsNullOrWhiteSpace(message)) return false;
+        
+        var lowerMessage = message.ToLowerInvariant();
+        
+        // Проверяем обращение к боту по имени
+        if (lowerMessage.Contains("@nekotyan_ai") || lowerMessage.Contains("nekotyan_ai"))
+        {
+            return true;
+        }
+        
+        // Проверяем ключевые слова, указывающие на обращение к AI
+        var aiKeywords = new[]
+        {
+            "!ai", "!аи", "!ии", "!ii", // команды AI
+        };
+        
+        return aiKeywords.Any(keyword => lowerMessage.Contains(keyword));
     }
 }

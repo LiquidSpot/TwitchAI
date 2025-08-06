@@ -21,6 +21,7 @@ internal class OpenAiService : IOpenAiService
 {
     private readonly ILSClientService _httpClient;
     private readonly IExternalLogger<OpenAiService> _logger;
+    private readonly IEngineService _engineService;
     private readonly IOptions<AppConfiguration> _appConfig;
     // Настройки берутся из конфигурации
     private readonly string _model;
@@ -28,10 +29,11 @@ internal class OpenAiService : IOpenAiService
     private readonly double _temp;
     private RequestBuilder<object> _builder;
 
-    public OpenAiService(ILSClientService httpClient, IExternalLogger<OpenAiService> logger, IOptions<AppConfiguration> appConfig)
+    public OpenAiService(ILSClientService httpClient, IExternalLogger<OpenAiService> logger, IEngineService engineService, IOptions<AppConfiguration> appConfig)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _engineService = engineService ?? throw new ArgumentNullException(nameof(engineService));
         _appConfig = appConfig ?? throw new ArgumentNullException(nameof(appConfig));
 
         // Инициализируем настройки из конфигурации
@@ -67,6 +69,32 @@ internal class OpenAiService : IOpenAiService
             OpenAiApiVersion.Responses => await GenerateUniversalFromResponsesApiWithContextAndTokens(message, conversationContext, _maxTokens, cancellationToken),
             OpenAiApiVersion.ChatCompletions => await GenerateUniversalFromChatCompletionsApiWithContextAndTokens(message, conversationContext, _maxTokens, cancellationToken),
             _ => await GenerateUniversalFromResponsesApiWithContextAndTokens(message, conversationContext, _maxTokens, cancellationToken) // По умолчанию используем новый API
+        };
+    }
+
+    public async Task<LSResponse<string>> GenerateUniversalWithContextAsync(UserMessage message, List<ConversationMessage> conversationContext, Guid userId, OpenAiApiVersion? apiVersion = null, CancellationToken cancellationToken = default)
+    {
+        var selectedApiVersion = apiVersion ?? _appConfig.Value.OpenAiApiVersion;
+        
+        // Получаем персональный движок пользователя
+        var userEngine = await _engineService.GetEngineAsync(userId, cancellationToken);
+
+        _logger.LogInformation(new { 
+            Method = nameof(GenerateUniversalWithContextAsync),
+            SelectedApiVersion = selectedApiVersion,
+            Message = message.message,
+            Role = message.role,
+            MaxTokens = _maxTokens,
+            ContextMessagesCount = conversationContext.Count,
+            UserId = userId,
+            UserEngine = userEngine
+        });
+
+        return selectedApiVersion switch
+        {
+            OpenAiApiVersion.Responses => await GenerateUniversalFromResponsesApiWithContextAndTokensAndEngine(message, conversationContext, _maxTokens, userEngine, cancellationToken),
+            OpenAiApiVersion.ChatCompletions => await GenerateUniversalFromChatCompletionsApiWithContextAndTokensAndEngine(message, conversationContext, _maxTokens, userEngine, cancellationToken),
+            _ => await GenerateUniversalFromResponsesApiWithContextAndTokensAndEngine(message, conversationContext, _maxTokens, userEngine, cancellationToken) // По умолчанию используем новый API
         };
     }
 
@@ -448,6 +476,208 @@ internal class OpenAiService : IOpenAiService
         });
 
         return inputMessages.ToArray();
+    }
+
+    /// <summary>
+    /// Универсальный метод для получения ответа от Responses API с контекстом, настраиваемым количеством токенов и движком
+    /// </summary>
+    private async Task<LSResponse<string>> GenerateUniversalFromResponsesApiWithContextAndTokensAndEngine(UserMessage message, List<ConversationMessage> conversationContext, int maxTokens, string engine, CancellationToken cancellationToken)
+    {
+        var result = new LSResponse<string>();
+        var response = await GenerateResponseWithContextAndEngineAsync(message, conversationContext, maxTokens, engine, cancellationToken);
+        
+        if (response.Status != Common.Packages.Response.Enums.ResponseStatus.Success || response.Result == null)
+        {
+            return result.From(response);
+        }
+
+        // Извлекаем текст из output массива
+        var content = response.Result.output?.FirstOrDefault(o => o.type == "message")
+                              ?.content?.FirstOrDefault(c => c.type == "output_text")
+                              ?.text?.Trim();
+
+        // Проверяем статус ответа
+        if (response.Result.status == "incomplete")
+        {
+            _logger.LogWarning(new { 
+                Method = nameof(GenerateUniversalFromResponsesApiWithContextAndTokensAndEngine),
+                Status = "Incomplete response",
+                Reason = response.Result.incomplete_details?.ToString(),
+                ResponseId = response.Result.id,
+                Engine = engine,
+                ContextMessagesCount = conversationContext.Count,
+                HasContent = !string.IsNullOrWhiteSpace(content)
+            });
+            
+            // Если есть хоть какой-то текст, возвращаем его как успешный результат
+            if (!string.IsNullOrWhiteSpace(content))
+            {
+                return result.Success(content);
+            }
+            
+            // Если нет текста, возвращаем ошибку
+            return result.Error(OpenAiErrorCodes.EmptyResponse, "Получен неполный ответ от OpenAI без текста.");
+        }
+
+        if (string.IsNullOrWhiteSpace(content))
+        {
+            return result.Error(OpenAiErrorCodes.EmptyResponse);
+        }
+
+        return result.Success(content);
+    }
+
+    /// <summary>
+    /// Универсальный метод для получения ответа от Chat Completions API с контекстом, настраиваемым количеством токенов и движком
+    /// </summary>
+    private async Task<LSResponse<string>> GenerateUniversalFromChatCompletionsApiWithContextAndTokensAndEngine(UserMessage message, List<ConversationMessage> conversationContext, int maxTokens, string engine, CancellationToken cancellationToken)
+    {
+        var result = new LSResponse<string>();
+        var response = await GenerateTextCompletionWithContextAndEngineAsync(message, conversationContext, maxTokens, engine, cancellationToken);
+        
+        if (response.Status != Common.Packages.Response.Enums.ResponseStatus.Success || response.Result == null)
+        {
+            return result.From(response);
+        }
+
+        var content = response.Result.choices?.FirstOrDefault()?.message?.content?.Trim();
+        if (string.IsNullOrWhiteSpace(content))
+        {
+            return result.Error(OpenAiErrorCodes.EmptyResponse);
+        }
+
+        return result.Success(content);
+    }
+
+    /// <summary>
+    /// Генерация ответа с использованием нового Responses API с контекстом и пользовательским движком
+    /// </summary>
+    private async Task<LSResponse<ResponsesApiResponseDto?>> GenerateResponseWithContextAndEngineAsync(UserMessage message, List<ConversationMessage> conversationContext, int maxTokens, string engine, CancellationToken cancellationToken = default)
+    {
+        var result = new LSResponse<ResponsesApiResponseDto?>();
+        try
+        {
+            _logger.LogInformation(new { 
+                Method = nameof(GenerateResponseWithContextAndEngineAsync),
+                ApiType = "Responses API",
+                Message = message.message, 
+                Role = message.role,
+                MaxTokens = maxTokens,
+                Temperature = message.temp,
+                Model = engine,
+                ContextMessagesCount = conversationContext.Count
+            });
+
+            var body = new ResponsesRequestDto()
+            {
+                model = engine,
+                input = BuildInputForResponsesApiWithContext(message, conversationContext),
+                max_output_tokens = maxTokens,
+                store = false // По умолчанию не сохраняем для простоты
+            };
+
+            // Добавляем temperature только если модель его поддерживает
+            if (!engine.StartsWith("o4") && !engine.StartsWith("o3") && !engine.StartsWith("o1"))
+            {
+                body.temperature = message.temp > 0 ? message.temp : _temp;
+            }
+
+            var url = Constants.OpenApiApis.responses;
+
+            var request = _builder
+                         .WithUrl(url)
+                         .WithMethod(HttpMethod.Post)
+                         .WithBody(body)
+                         .Build();
+
+            var response = await _httpClient.ExecuteRequestAsync<ResponsesApiResponseDto?>(request, Constants.OpenAiClientKey, cancellationToken).ConfigureAwait(false);
+
+            if (response.Status == Common.Packages.Response.Enums.ResponseStatus.Success)
+            {
+                result.Result = response.Result;
+                return result.Success();
+            }
+
+            return result.From(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError((int)BaseErrorCodes.OperationProcessError, new { 
+                Method = nameof(GenerateResponseWithContextAndEngineAsync),
+                Status = "Exception",
+                Error = ex.GetType().Name,
+                Message = ex.Message,
+                Model = engine,
+                StackTrace = ex.StackTrace
+            });
+
+            return result.Error(OpenAiErrorCodes.ApiCallError, ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Генерация ответа с использованием Chat Completions API с контекстом и пользовательским движком
+    /// </summary>
+    private async Task<LSResponse<TextCompletionDto?>> GenerateTextCompletionWithContextAndEngineAsync(UserMessage message, List<ConversationMessage> conversationContext, int maxTokens, string engine, CancellationToken cancellationToken = default)
+    {
+        var result = new LSResponse<TextCompletionDto?>();
+        try
+        {
+            _logger.LogInformation(new { 
+                Method = nameof(GenerateTextCompletionWithContextAndEngineAsync),
+                ApiType = "Chat Completions API",
+                Message = message.message, 
+                Role = message.role,
+                MaxTokens = maxTokens,
+                Temperature = message.temp,
+                Model = engine,
+                ContextMessagesCount = conversationContext.Count
+            });
+
+            var body = new RequestModelDto()
+            {
+                model = engine,
+                max_tokens = maxTokens,
+                messages = BuildMessagesWithContext(message, conversationContext)
+            };
+
+            // Добавляем temperature только если модель его поддерживает
+            if (!engine.StartsWith("o4") && !engine.StartsWith("o3") && !engine.StartsWith("o1"))
+            {
+                body.temperature = message.temp > 0 ? message.temp : _temp;
+            }
+
+            var url = Constants.OpenApiApis.completions;
+
+            var request = _builder
+                         .WithUrl(url)
+                         .WithMethod(HttpMethod.Post)
+                         .WithBody(body)
+                         .Build();
+
+            var response = await _httpClient.ExecuteRequestAsync<TextCompletionDto?>(request, Constants.OpenAiClientKey, cancellationToken).ConfigureAwait(false);
+
+            if (response.Status == Common.Packages.Response.Enums.ResponseStatus.Success)
+            {
+                result.Result = response.Result;
+                return result.Success();
+            }
+
+            return result.From(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError((int)BaseErrorCodes.OperationProcessError, new { 
+                Method = nameof(GenerateTextCompletionWithContextAndEngineAsync),
+                Status = "Exception",
+                Error = ex.GetType().Name,
+                Message = ex.Message,
+                Model = engine,
+                StackTrace = ex.StackTrace
+            });
+
+            return result.Error(OpenAiErrorCodes.ApiCallError, ex.Message);
+        }
     }
 
     /// <summary>

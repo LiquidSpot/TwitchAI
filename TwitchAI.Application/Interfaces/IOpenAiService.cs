@@ -20,5 +20,16 @@ public interface IOpenAiService
     /// <returns>Текстовый ответ от OpenAI</returns>
     public Task<LSResponse<string>> GenerateUniversalWithContextAsync(UserMessage message, List<ConversationMessage> conversationContext, OpenAiApiVersion? apiVersion = null, CancellationToken ct = default);
 
+    /// <summary>
+    /// Универсальный метод генерации с контекстом пользователя и персональным движком
+    /// </summary>
+    /// <param name="message">Сообщение пользователя</param>
+    /// <param name="conversationContext">Контекст диалога пользователя</param>
+    /// <param name="userId">ID пользователя для получения персонального движка</param>
+    /// <param name="apiVersion">Версия API для использования (если не указана, берется из конфигурации)</param>
+    /// <param name="ct">Токен отмены</param>
+    /// <returns>Текстовый ответ от OpenAI</returns>
+    public Task<LSResponse<string>> GenerateUniversalWithContextAsync(UserMessage message, List<ConversationMessage> conversationContext, Guid userId, OpenAiApiVersion? apiVersion = null, CancellationToken ct = default);
+
 
 }

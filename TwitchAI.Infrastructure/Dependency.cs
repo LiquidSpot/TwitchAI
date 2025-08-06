@@ -59,15 +59,18 @@ public static class Dependency
 
             services.AddSingleton<IBotRoleService, BotRoleService>();
             services.AddSingleton<ISoundAlertsService, SoundAlertsService>();
-            services.AddSingleton<IReplyLimitService, ReplyLimitService>();
 
             services.AddScoped<IGreetingService, GreetingService>();
             services.AddScoped<IOpenAiService, OpenAiService>();
+            services.AddScoped<IChatMessageService, ChatMessageService>();
+            services.AddScoped<IConversationService, ConversationService>();
             services.AddScoped<ITwitchUserService, TwitchUserService>();
             services.AddScoped<IUserMessageParser, UserMessageParser>();
             services.AddScoped<ITwitchIntegrationService, TwitchIntegrationService>();
             services.AddScoped<IViewerMonitoringService, ViewerMonitoringService>();
             services.AddScoped<IHolidayService, HolidayService>();
+            services.AddScoped<IReplyLimitService, ReplyLimitService>();
+            services.AddScoped<IEngineService, EngineService>();
             services.AddHostedService<ViewerMonitoringBackgroundService>();
 
             return services;
