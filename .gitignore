@@ -430,3 +430,4 @@ local.settings.json
 /TwitchAI.Api/appsettings.Development.json
 /TwitchAI.API/appsettings.Development.json
 /NuGet.Config
+/TwitchAI.Api/appsettings.Development.json
