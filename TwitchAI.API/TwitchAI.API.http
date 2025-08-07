@@ -1,6 +1,0 @@
-@TwitchAI.API_HostAddress = http://localhost:5212
-
-GET {{TwitchAI.API_HostAddress}}/weatherforecast/
-Accept: application/json
-
-###
