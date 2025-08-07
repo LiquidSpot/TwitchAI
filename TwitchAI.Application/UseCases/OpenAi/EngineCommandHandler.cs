@@ -1,7 +1,9 @@
 using Common.Packages.Logger.Services.Interfaces;
 using Common.Packages.Response.Behaviors;
 using Common.Packages.Response.Models;
+using Microsoft.Extensions.Options;
 using TwitchAI.Application.Interfaces;
+using TwitchAI.Application.Models;
 using TwitchAI.Domain.Enums.ErrorCodes;
 
 namespace TwitchAI.Application.UseCases.OpenAi;
@@ -10,13 +12,16 @@ internal class EngineCommandHandler : ICommandHandler<EngineCommand, LSResponse<
 {
     private readonly IEngineService _engineService;
     private readonly IExternalLogger<EngineCommandHandler> _logger;
+    private readonly AppConfiguration _appConfig;
 
     public EngineCommandHandler(
         IEngineService engineService,
-        IExternalLogger<EngineCommandHandler> logger)
+        IExternalLogger<EngineCommandHandler> logger,
+        IOptions<AppConfiguration> appConfig)
     {
         _engineService = engineService ?? throw new ArgumentNullException(nameof(engineService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _appConfig = appConfig?.Value ?? throw new ArgumentNullException(nameof(appConfig));
     }
 
     public async Task<LSResponse<string>> Handle(EngineCommand request, CancellationToken cancellationToken)
@@ -31,8 +36,8 @@ internal class EngineCommandHandler : ICommandHandler<EngineCommand, LSResponse<
 
         try
         {
-            // Валидация названия движка
-            var validEngines = new[] { "gpt-4o-2024-11-20", "gpt-4.1-2025-04-14", "chatgpt-4o-latest", "o4-mini-2025-04-16", "o3-2025-04-16" };
+            // Валидация названия движка из конфигурации
+            var validEngines = _appConfig.OpenAi?.AvailableEngines ?? new[] { "gpt-4o-2024-11-20", "gpt-4.1-2025-04-14", "chatgpt-4o-latest", "o4-mini-2025-04-16", "o3-2025-04-16" };
             var availableEngines = string.Join(", ", validEngines);
             
             // Проверка на пустое название (неправильный формат команды)

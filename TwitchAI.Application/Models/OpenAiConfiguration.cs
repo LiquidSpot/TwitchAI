@@ -19,4 +19,9 @@ public class OpenAiConfiguration
     /// Температура по умолчанию для генерации текста
     /// </summary>
     public double Temperature { get; set; } = 0.8;
+    
+    /// <summary>
+    /// Список доступных движков OpenAI
+    /// </summary>
+    public string[] AvailableEngines { get; set; } = { "gpt-4o-2024-11-20", "gpt-4.1-2025-04-14", "chatgpt-4o-latest", "o4-mini-2025-04-16", "o3-2025-04-16" };
 } 
