@@ -33,6 +33,7 @@ try
         $"{builder.Environment.EnvironmentName} " +
         $"{Environment.MachineName} " +
         $"{Environment.ProcessId}]");
+
     app.Run();
 }
 catch(Exception ex)
