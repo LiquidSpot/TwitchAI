@@ -46,7 +46,7 @@
 
 - **Email**: liquidspot.live@gmail.com
 - **Telegram**: @LiquidSpoty
-- **Discord**: Временно отсутствует
+- **Discord**: liquidspot#7346 (344125218014625793)
 
 ## ⏰ Время ответа
 
