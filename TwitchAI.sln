@@ -19,7 +19,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		NuGet.Config = NuGet.Config
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TwitchAI.Api", "TwitchAI.Api\TwitchAI.Api.csproj", "{3914726B-96FE-4BCB-BE50-1CBE05AFAF20}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TwitchAI.Api", "TwitchAI.Api\TwitchAI.Api.csproj", "{ABCACB56-0FF8-F414-3380-91E14E1B1AC3}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -51,10 +51,10 @@ Global
 		{CAEF32BF-C819-47B2-96EE-33294E4B9E8A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{CAEF32BF-C819-47B2-96EE-33294E4B9E8A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{CAEF32BF-C819-47B2-96EE-33294E4B9E8A}.Release|Any CPU.Build.0 = Release|Any CPU
-		{3914726B-96FE-4BCB-BE50-1CBE05AFAF20}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{3914726B-96FE-4BCB-BE50-1CBE05AFAF20}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{3914726B-96FE-4BCB-BE50-1CBE05AFAF20}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{3914726B-96FE-4BCB-BE50-1CBE05AFAF20}.Release|Any CPU.Build.0 = Release|Any CPU
+		{ABCACB56-0FF8-F414-3380-91E14E1B1AC3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{ABCACB56-0FF8-F414-3380-91E14E1B1AC3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{ABCACB56-0FF8-F414-3380-91E14E1B1AC3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{ABCACB56-0FF8-F414-3380-91E14E1B1AC3}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -1,0 +1,139 @@
+@TwitchAI.API_HostAddress = http://localhost:5212
+@ContentType = application/json
+
+### Тестирование подключения к OpenAI API (автоматический выбор версии)
+GET {{TwitchAI.API_HostAddress}}/api/v1/OpenAi/test-connection
+Accept: {{ContentType}}
+
+### Тестирование подключения к Responses API
+GET {{TwitchAI.API_HostAddress}}/api/v1/OpenAi/test-responses
+Accept: {{ContentType}}
+
+### Тестирование подключения к Chat Completions API
+GET {{TwitchAI.API_HostAddress}}/api/v1/OpenAi/test-completions
+Accept: {{ContentType}}
+
+### Получение текущей роли
+GET {{TwitchAI.API_HostAddress}}/api/v1/OpenAi/current-role
+Accept: {{ContentType}}
+
+### Генерация ответа (автоматический выбор API версии)
+POST {{TwitchAI.API_HostAddress}}/api/v1/OpenAi/generate
+Content-Type: {{ContentType}}
+
+{
+  "message": "Привет! Как дела?",
+  "role": 0,
+  "temperature": 0.7,
+  "maxTokens": 100
+}
+
+### Генерация ответа с помощью нового Responses API
+POST {{TwitchAI.API_HostAddress}}/api/v1/OpenAi/generate-responses
+Content-Type: {{ContentType}}
+
+{
+  "message": "Расскажи про новый Responses API от OpenAI",
+  "role": 0,
+  "temperature": 0.7,
+  "maxTokens": 150
+}
+
+### Генерация ответа с помощью старого Chat Completions API
+POST {{TwitchAI.API_HostAddress}}/api/v1/OpenAi/generate-completions
+Content-Type: {{ContentType}}
+
+{
+  "message": "Расскажи про старый Chat Completions API от OpenAI",
+  "role": 0,
+  "temperature": 0.7,
+  "maxTokens": 150
+}
+
+### Генерация ответа с ролью Neko через Responses API
+POST {{TwitchAI.API_HostAddress}}/api/v1/OpenAi/generate-responses
+Content-Type: {{ContentType}}
+
+{
+  "message": "Расскажи про игру в Dota 2",
+  "role": 1,
+  "temperature": 0.9,
+  "maxTokens": 200
+}
+
+### Генерация ответа с ролью Neko через Chat Completions API
+POST {{TwitchAI.API_HostAddress}}/api/v1/OpenAi/generate-completions
+Content-Type: {{ContentType}}
+
+{
+  "message": "Расскажи про игру в Dota 2",
+  "role": 1,
+  "temperature": 0.9,
+  "maxTokens": 200
+}
+
+### Генерация ответа с ролью Toxic через Responses API
+POST {{TwitchAI.API_HostAddress}}/api/v1/OpenAi/generate-responses
+Content-Type: {{ContentType}}
+
+{
+  "message": "Помоги мне с программированием",
+  "role": 2,
+  "temperature": 0.8,
+  "maxTokens": 150
+}
+
+### Тест валидации - пустое сообщение
+POST {{TwitchAI.API_HostAddress}}/api/v1/OpenAi/generate
+Content-Type: {{ContentType}}
+
+{
+  "message": "",
+  "role": 0,
+  "temperature": 0.7,
+  "maxTokens": 100
+}
+
+### Тест валидации - неверная температура
+POST {{TwitchAI.API_HostAddress}}/api/v1/OpenAi/generate
+Content-Type: {{ContentType}}
+
+{
+  "message": "Тест",
+  "role": 0,
+  "temperature": 3.0,
+  "maxTokens": 100
+}
+
+### Тест валидации - слишком много токенов
+POST {{TwitchAI.API_HostAddress}}/api/v1/OpenAi/generate
+Content-Type: {{ContentType}}
+
+{
+  "message": "Тест",
+  "role": 0,
+  "temperature": 0.7,
+  "maxTokens": 10000
+}
+
+### Сравнение производительности - Responses API
+POST {{TwitchAI.API_HostAddress}}/api/v1/OpenAi/generate-responses
+Content-Type: {{ContentType}}
+
+{
+  "message": "Объясни разницу между синхронным и асинхронным программированием",
+  "role": 0,
+  "temperature": 0.7,
+  "maxTokens": 300
+}
+
+### Сравнение производительности - Chat Completions API
+POST {{TwitchAI.API_HostAddress}}/api/v1/OpenAi/generate-completions
+Content-Type: {{ContentType}}
+
+{
+  "message": "Объясни разницу между синхронным и асинхронным программированием",
+  "role": 0,
+  "temperature": 0.7,
+  "maxTokens": 300
+} 
