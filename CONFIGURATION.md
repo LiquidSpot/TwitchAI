@@ -22,7 +22,17 @@ cd TwitchAI
     "OpenAiApiVersion": 1,
     "OpenAi": {
       "OrganizationId": "your_real_openai_organization_id",
-      "ProjectId": "your_real_openai_project_id"
+      "ProjectId": "your_real_openai_project_id",
+      "Model": "gpt-4o-2024-11-20",
+      "MaxTokens": 512,
+      "Temperature": 0.3,
+      "AvailableEngines": [
+        "gpt-4o-2024-11-20",
+        "gpt-4.1-2025-04-14",
+        "chatgpt-4o-latest",
+        "o4-mini-2025-04-16",
+        "o3-2025-04-16"
+      ]
     }
   },
   "AuthClientsConfig": {
@@ -56,6 +66,14 @@ cd TwitchAI
 2. Создайте API ключ
 3. Замените `YOUR_OPENAI_API_KEY_HERE` на ваш реальный ключ
 4. Получите Organization ID и Project ID из настроек OpenAI
+5. Настройте доступные движки в массиве `AvailableEngines`:
+   - `gpt-4o-2024-11-20`: GPT-4o модель (рекомендуется)
+   - `gpt-4.1-2025-04-14`: GPT-4.1 модель
+   - `chatgpt-4o-latest`: Последняя версия ChatGPT-4o
+   - `o4-mini-2025-04-16`: Облегченная версия O4
+   - `o3-2025-04-16`: O3 модель
+   
+   Пользователи смогут переключаться между этими движками командой `!engine <название>`
 
 #### PostgreSQL Database
 1. Установите PostgreSQL
@@ -95,6 +113,10 @@ dotnet run --project TwitchAI.AppHost
 - `OpenAi`: Настройки OpenAI
   - `OrganizationId`: ID организации OpenAI
   - `ProjectId`: ID проекта OpenAI
+  - `Model`: Модель OpenAI по умолчанию (например, "gpt-4o-2024-11-20")
+  - `MaxTokens`: Максимальное количество токенов для ответа (по умолчанию 512)
+  - `Temperature`: Температура генерации текста (0.0-1.0, по умолчанию 0.3)
+  - `AvailableEngines`: Массив доступных движков OpenAI для команды !engine
 
 ### AuthClientsConfig
 Настройки для внешних API клиентов (OpenAI).
@@ -145,6 +167,9 @@ dotnet run --project TwitchAI.AppHost
 - Проверьте правильность API ключа
 - Убедитесь, что у вас есть кредиты на OpenAI аккаунте
 - Проверьте, что используется правильная версия API
+- Убедитесь, что модель в `Model` доступна для вашего аккаунта
+- Проверьте, что все движки в `AvailableEngines` корректны и доступны
+- Если команда `!engine` не работает, проверьте список доступных движков в конфигурации
 
 ### Ошибки подключения к базе данных
 - Убедитесь, что PostgreSQL запущен
