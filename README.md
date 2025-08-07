@@ -6,6 +6,7 @@
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white)
 ![OpenAI](https://img.shields.io/badge/OpenAI-412991?style=for-the-badge&logo=openai&logoColor=white)
 ![Twitch](https://img.shields.io/badge/Twitch-9146FF?style=for-the-badge&logo=twitch&logoColor=white)
+![License](https://img.shields.io/badge/License-Apache%202.0-blue?style=for-the-badge)
 
 **Современный AI-powered Twitch бот с архитектурой Clean Architecture**
 
@@ -287,7 +288,7 @@ TwitchAI - это продвинутый Twitch бот нового поколе
 
 ### Предварительные требования
 - .NET 8 SDK
-- PostgreSQL
+- PostgreSQL (база данных создается автоматически)
 - OpenAI API ключ
 - Twitch токены (через Developer Console или TwitchTokenGenerator)
 
@@ -306,6 +307,7 @@ TwitchAI - это продвинутый Twitch бот нового поколе
    ```json
    {
      "AppConfiguration": {
+       "MigrateDb": true,  // Автоматические миграции БД при запуске
        "OpenAi": {
          "OrganizationId": "your_openai_org_id",
          "ProjectId": "your_openai_project_id",
@@ -367,10 +369,20 @@ TwitchAI - это продвинутый Twitch бот нового поколе
 
    > 💡 **Совет:** [TwitchTokenGenerator.com](https://twitchtokengenerator.com/) идеально подходит для разработки и тестирования, так как автоматически генерирует все необходимые токены за несколько кликов. Для production рекомендуется использовать собственное Twitch приложение.
 
-4. **Создайте базу данных**
-   ```bash
-   dotnet ef database update --project TwitchAI.Infrastructure
+4. **Настройте автоматическую миграцию базы данных**
+   
+   В файле конфигурации установите флаг `MigrateDb` в `true` для автоматического применения миграций при запуске:
+   
+   ```json
+   {
+     "AppConfiguration": {
+       "MigrateDb": true,  // ← Установите true для автоматических миграций
+       // ... остальные настройки
+     }
+   }
    ```
+   
+   > 💡 **Автоматические миграции:** При `MigrateDb: true` приложение автоматически создаст и обновит базу данных при запуске. Команды `dotnet ef database update` не требуются!
 
 5. **Запустите приложение**
    ```bash
