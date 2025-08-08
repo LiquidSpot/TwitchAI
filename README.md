@@ -10,13 +10,89 @@
 
 **Современный AI-powered Twitch бот с архитектурой Clean Architecture**
 
-[Быстрый старт](#-быстрый-старт) • [Функциональность](#-функциональность) • [Ключевые особенности](#-Ключевые-особенности) • [API](#-архитектура-сервисов)
-
 </div>
 
 ---
 
 TwitchAI - это продвинутый Twitch бот нового поколения, построенный на .NET 8 с использованием принципов Clean Architecture. Интегрирован с OpenAI GPT для интеллектуального взаимодействия, предоставляет богатый набор развлекательных и утилитарных функций для создания живого и интерактивного чата.
+
+## Table of Contents / Оглавление
+- [📚 Repository Overview / Обзор репозитория](#-repository-overview--обзор-репозитория)
+- [✨ Key Features / Ключевые особенности](#-ключевые-особенности)
+- [🏗️ Architecture / Архитектура](#-архитектура)
+- [🎯 Functionality / Функциональность](#-функциональность)
+- [🎮 Bot Roles / Роли бота](#-роли-бота)
+- [🔧 OpenAI Engines / Доступные движки OpenAI](#-доступные-движки-openai)
+- [🌍 Supported Languages / Поддерживаемые языки перевода](#-поддерживаемые-языки-перевода)
+- [📊 Monitoring & Logging / Мониторинг и логирование](#-мониторинг-и-логирование)
+- [🤝 Contributing / Участие в разработке](#-участие-в-разработке)
+- [📝 License / Лицензия](#-лицензия)
+- [🆘 Support / Поддержка](#-поддержка)
+- [🎯 Roadmap / Планы развития](#-планы-развития)
+
+## 📚 Repository Overview / Обзор репозитория
+
+### 🇺🇸 English
+#### General Architecture
+TwitchAI is a .NET 8 solution built around Clean Architecture. The solution is organized into projects for presentation, application logic, domain models, infrastructure, and hosting:
+- **TwitchAI.Api** – entry point that configures configuration sources, service defaults, and layer dependencies before running the web application
+- **TwitchAI.Application** – core layer containing MediatR commands/queries, cross-cutting behaviors, DTOs, and interfaces; dependencies add AutoMapper, options, and pipeline behaviors for logging, exception handling, and cancellation
+- **TwitchAI.Domain** – domain entities, enums, and resources describing Twitch users, chat messages, conversation history, and error codes
+- **TwitchAI.Infrastructure** – implementations of application interfaces: EF Core persistence, HTTP client configuration, and integrations with OpenAI and Twitch. The `TwitchIntegrationService` maintains a WebSocket connection, handles events, and sends replies back to chat
+- **TwitchAI.ServiceDefaults** – shared setup for health checks, service discovery, OpenTelemetry, etc.
+- **TwitchAI.AppHost** – minimal Aspire host that runs the API project.
+
+#### Key Flow
+1. **Chat Reception & Parsing**  
+   Incoming Twitch messages are handled by `HandleMessageCommandHandler`, which orchestrates greeting, viewer tracking, and command dispatch. Messages are parsed into specific commands (e.g., `AiChatCommand`, `ChangeRoleCommand`, `EngineCommand`) by `ParseChatMessageQueryHandler`.
+2. **AI Interaction**  
+   `AiChatCommandHandler` builds conversation context, saves user messages, and calls `IOpenAiService`. If a GPT response arrives, it stores the reply and remembers the conversation for future references.
+3. **Message Relay**  
+   Responses are sent back to Twitch through `TwitchIntegrationService`, which also records outgoing messages for conversation tracking.
+
+#### Important Concepts
+- **CQRS via MediatR** – commands and queries decouple request handling from services
+- **Repository & Unit of Work** – EF Core repositories manage persistence through `ApplicationDbContext`
+- **Contextual AI** – conversation messages stored in the database allow the bot to maintain state
+- **Service Defaults** – centralized configuration for health checks, telemetry, and resilience
+
+#### Next Steps
+- Explore feature use cases under `TwitchAI.Application/UseCases`
+- Review services in `TwitchAI.Infrastructure/Services`
+- Read `CONFIGURATION.md` and `appsettings.*.json` for configuration details
+- Add new chat commands by creating use cases and updating the parser
+- Inspect `TwitchAI.ServiceDefaults` for telemetry and health checks
+
+### 🇷🇺 Русский
+#### Общая архитектура
+TwitchAI — решение на .NET 8, построенное по принципам Clean Architecture. Оно разделено на проекты для представления, бизнес-логики, доменных моделей, инфраструктуры и хостинга:
+- **TwitchAI.Api** — точка входа, настраивает источники конфигурации, общие сервисы и зависимости слоёв перед запуском веб‑приложения
+- **TwitchAI.Application** — основной слой с командами/запросами MediatR, общими поведениями, DTO и интерфейсами; подключаются AutoMapper, options и pipeline‑поведения для логирования, обработки исключений и отмены
+- **TwitchAI.Domain** — доменные сущности, перечисления и ресурсы, описывающие пользователей Twitch, сообщения чата, историю разговоров и коды ошибок
+- **TwitchAI.Infrastructure** — реализации интерфейсов приложения: постоянство данных через EF Core, настройка HTTP‑клиентов и интеграции с OpenAI и Twitch. `TwitchIntegrationService` поддерживает WebSocket‑соединение, обрабатывает события и отправляет ответы в чат
+- **TwitchAI.ServiceDefaults** — общие настройки health checks, service discovery, OpenTelemetry и др.
+- **TwitchAI.AppHost** — минимальный Aspire‑хост, запускающий API‑проект
+
+#### Ключевой поток
+1. **Приём и парсинг сообщений**  
+   Входящие сообщения Twitch обрабатываются `HandleMessageCommandHandler`, который управляет приветствием, отслеживанием зрителей и отправкой команд. `ParseChatMessageQueryHandler` разбирает сообщения в конкретные команды (например, `AiChatCommand`, `ChangeRoleCommand`, `EngineCommand`).
+2. **Взаимодействие с ИИ**  
+   `AiChatCommandHandler` формирует контекст диалога, сохраняет сообщения пользователя и обращается к `IOpenAiService`. При получении ответа GPT он сохраняет реплику и запоминает разговор для будущих ссылок.
+3. **Передача сообщений**  
+   Ответы отправляются в Twitch через `TwitchIntegrationService`, который также фиксирует исходящие сообщения для отслеживания истории.
+
+#### Важные концепции
+- **CQRS через MediatR** — команды и запросы отделяют обработку от сервисов
+- **Repository & Unit of Work** — репозитории EF Core управляют постоянством через `ApplicationDbContext`
+- **Контекстный ИИ** — сообщения разговоров в базе данных позволяют боту сохранять состояние
+- **Service Defaults** — централизованные настройки для health checks, телеметрии и устойчивости
+
+#### Что изучить далее
+- Изучить примеры Use Case в `TwitchAI.Application/UseCases`
+- Рассмотреть службы в `TwitchAI.Infrastructure/Services`
+- Прочитать `CONFIGURATION.md` и `appsettings.*.json` для настройки
+- Добавить новую команду чата, создав Use Case и обновив парсер
+- Изучить `TwitchAI.ServiceDefaults` для телеметрии и health checks
 
 ## ✨ Ключевые особенности
 
