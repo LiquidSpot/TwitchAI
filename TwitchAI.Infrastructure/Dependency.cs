@@ -71,6 +71,13 @@ public static class Dependency
             services.AddScoped<IHolidayService, HolidayService>();
             services.AddScoped<IReplyLimitService, ReplyLimitService>();
             services.AddScoped<IEngineService, EngineService>();
+            services.AddScoped<IUserService, UserService>();
+            services.AddScoped<IUserSettingsService, UserSettingsService>();
+            services.AddScoped<IRefreshTokenService, RefreshTokenService>();
+            services.AddScoped<IJwtTokenService, JwtTokenService>();
+            services.AddScoped<IIntegrationCheckService, IntegrationCheckService>();
+            services.AddScoped<ICredentialProtector, CredentialProtector>();
+            services.AddScoped<IBotSettingsService, BotSettingsService>();
             services.AddHostedService<ViewerMonitoringBackgroundService>();
 
             return services;

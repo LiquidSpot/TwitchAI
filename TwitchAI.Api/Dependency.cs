@@ -15,6 +15,7 @@ using TwitchAI.Api.Middleware;
 using TwitchAI.Application.Constants;
 using TwitchAI.Infrastructure;
 using TwitchAI.ServiceDefaults;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 
 using static Common.Packages.Logger.Dependency.ServiceCollectionExtensions;
 
@@ -50,6 +51,7 @@ public static class Dependency
         return ExecuteReturn(() =>
         {
             services.AddAppMvc()
+                    .AddJwtAuth(configuration)
                     .AddAppVersioning()
                     .AddSwaggerDocs(Assembly.GetExecutingAssembly());
 
@@ -78,6 +80,41 @@ public static class Dependency
                          }
                      });
 
+            return services;
+        });
+    }
+
+    private static IServiceCollection AddJwtAuth(this IServiceCollection services, IConfiguration configuration)
+    {
+        return ExecuteReturn(() =>
+        {
+            services.AddDataProtection();
+            services.Configure<TwitchAI.Application.Models.JwtConfiguration>(configuration.GetSection("Jwt"));
+            var jwt = new TwitchAI.Application.Models.JwtConfiguration();
+            configuration.GetSection("Jwt").Bind(jwt);
+
+            services.AddAuthentication(options =>
+            {
+                options.DefaultAuthenticateScheme = Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerDefaults.AuthenticationScheme;
+                options.DefaultChallengeScheme = Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerDefaults.AuthenticationScheme;
+            })
+            .AddJwtBearer(options =>
+            {
+                options.RequireHttpsMetadata = true;
+                options.SaveToken = true;
+                options.TokenValidationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters
+                {
+                    ValidateIssuer = true,
+                    ValidateAudience = true,
+                    ValidateLifetime = true,
+                    ValidateIssuerSigningKey = true,
+                    ValidIssuer = jwt.Issuer,
+                    ValidAudience = jwt.Audience,
+                    IssuerSigningKey = new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(jwt.Secret))
+                };
+            });
+
+            services.AddAuthorization();
             return services;
         });
     }
