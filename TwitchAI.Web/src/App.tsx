@@ -1,5 +1,4 @@
 import { useNavigate, useLocation } from '@solidjs/router'
-import { Show } from 'solid-js'
 import { BRAND_ICON, BRAND_NAME } from './utils/brand'
 import Login from './pages/Login'
 import Settings from './pages/Settings'
@@ -26,37 +25,50 @@ export default function App(props: Props) {
             <img src={BRAND_ICON} alt={BRAND_NAME} class="h-7 w-7 rounded" loading="eager" decoding="async" />
             <span>{BRAND_NAME}</span>
           </div>
-          <div class="space-x-3">
-            <button class="btn btn-secondary" onClick={() => navigate('/')}>Главная</button>
-            <button class="btn btn-secondary" onClick={() => navigate('/features')}>Функции</button>
-            <button class="btn btn-secondary" onClick={() => navigate('/pricing')}>Цены</button>
-            <button class="btn btn-secondary" onClick={() => navigate('/docs')}>Документация</button>
-            <button class="btn btn-primary" onClick={() => navigate('/settings')}>Настройки</button>
-            {token() ? (
-              <button class="btn btn-secondary" onClick={() => { localStorage.removeItem('access_token'); navigate('/login') }}>Выйти</button>
-            ) : (
-              <button class="btn btn-secondary" onClick={() => navigate('/login')}>Войти</button>
-            )}
-          </div>
+		  <div class="flex items-center gap-2">
+			{/* Публичные */}
+			<div class="flex items-center gap-2">
+			  <button class="btn btn-secondary" onClick={() => navigate('/')}>Главная</button>
+			  <button class="btn btn-secondary" onClick={() => navigate('/features')}>Функции</button>
+			  <button class="btn btn-secondary" onClick={() => navigate('/pricing')}>Цены</button>
+			  <button class="btn btn-secondary" onClick={() => navigate('/docs')}>Документация</button>
+			</div>
+
+			{/* Приватные (видны только после входа) */}
+			{token() && (
+				<>
+					<div class="mx-2 h-6 w-px bg-slate-700" />
+					<div class="flex items-center gap-2">
+						<button class="btn btn-secondary" onClick={() => navigate('/dashboard')}>Дашборд</button>
+						<button class="btn btn-secondary" onClick={() => navigate('/integrations')}>Интеграции</button>
+						<button class="btn btn-primary" onClick={() => navigate('/settings')}>Настройки</button>
+						<button class="btn btn-secondary" onClick={() => { localStorage.removeItem('access_token'); navigate('/login') }}>Выйти</button>
+					</div>
+				</>
+			)}
+			{!token() && (
+				<>
+					<div class="mx-2 h-6 w-px bg-slate-700" />
+					<button class="btn btn-primary" onClick={() => navigate('/login')}>Войти</button>
+				</>
+			)}
+		  </div>
         </div>
       </nav>
 
       <main class="pt-24">
-        <Show when={location.pathname} keyed>
-          {() => (
-            <div
-              class="route-fade"
-              ref={el => {
-                // force reflow to restart transition
-                // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-                (el as HTMLElement).offsetHeight
-                requestAnimationFrame(() => el.classList.add('route-fade-show'))
-              }}
-            >
-              {props.children}
-            </div>
-          )}
-        </Show>
+        <div
+          class="route-fade"
+          ref={el => {
+            // force reflow to restart transition
+            // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+            (el as HTMLElement).offsetHeight
+            requestAnimationFrame(() => el.classList.add('route-fade-show'))
+          }}
+          data-path={location.pathname}
+        >
+          {props.children}
+        </div>
       </main>
       <Footer />
     </div>

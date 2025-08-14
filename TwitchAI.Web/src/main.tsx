@@ -10,6 +10,9 @@ import Settings from './pages/Settings'
 import Register from './pages/Register'
 import ResetPassword from './pages/ResetPassword'
 import Protected from './components/Protected'
+import Dashboard from './pages/Dashboard'
+import Integrations from './pages/Integrations'
+import Onboarding from './pages/Onboarding'
 import './index.css'
 
 render(() => (
@@ -25,6 +28,21 @@ render(() => (
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
       <Route path="/reset-password" component={ResetPassword} />
+      <Route path="/dashboard" component={() => (
+        <Protected>
+          <Dashboard />
+        </Protected>
+      )} />
+      <Route path="/integrations" component={() => (
+        <Protected>
+          <Integrations />
+        </Protected>
+      )} />
+      <Route path="/onboarding" component={() => (
+        <Protected>
+          <Onboarding />
+        </Protected>
+      )} />
       <Route path="/settings" component={() => (
         <Protected>
           <Settings />

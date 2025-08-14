@@ -133,6 +133,7 @@ public static class Dependency
         return ExecuteReturn(() =>
         {
             app.MigrateDatabaseAsync(configuration);
+            app.SeedAdminUserAsync(configuration);
             app.UseTwtichIntegration(configuration);
             return app;
         });
@@ -185,6 +186,26 @@ public static class Dependency
                 throw new LSException(BaseErrorCodes.InternalServerError, ExceptionFormatter.Format(ex));
             }
         });
+    }
+
+    public static async Task<WebApplication> SeedAdminUserAsync(this WebApplication app, IConfiguration configuration)
+    {
+        using var scope = app.Services.CreateScope();
+        try
+        {
+            var email = configuration["Admin:Email"] ?? "admin@local";
+            var password = configuration["Admin:Password"] ?? "admin12345";
+            var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
+            var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            await userService.RegisterAsync(email, password, cts.Token).ConfigureAwait(false);
+            Log.Information($"[{Activity.Current?.Id}] Admin seed ensured for {email}");
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Admin seed failed");
+        }
+
+        return app;
     }
 
 

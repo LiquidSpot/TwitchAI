@@ -15,7 +15,7 @@ export default function Login() {
     setState('error', null)
     setState('loading', true)
     try {
-      const { data } = await api.post('/v1/auth/login', { email: state.email, password: state.password })
+      const { data } = await api.post('/v1.0/auth/login', { email: state.email, password: state.password })
       if (data?.result?.access || data?.result?.refresh) {
         // ожидаем формат LSResponse<(access, refresh)>
         const access = data.result.access ?? data.result?.item1

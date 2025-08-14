@@ -1,6 +1,8 @@
 import axios, { AxiosError, AxiosRequestConfig } from 'axios'
 import { getAccessToken, getRefreshToken, saveTokens, clearTokens } from './auth'
 
+export const API_PREFIX = '/v1.0'
+
 const api = axios.create({ baseURL: '/api' })
 
 // Проставляем access токен в каждый запрос
@@ -25,7 +27,7 @@ async function refreshToken(): Promise<string | null> {
   try {
     const rt = getRefreshToken()
     if (!rt) throw new Error('No refresh token')
-    const resp = await axios.post('/api/v1/auth/refresh', { refreshToken: rt })
+    const resp = await axios.post(`/api${API_PREFIX}/auth/refresh`, { refreshToken: rt })
     const newAccess = resp.data?.data?.access ?? resp.data?.access ?? resp.data?.token ?? null
     const newRefresh = resp.data?.data?.refresh ?? resp.data?.refresh ?? null
     saveTokens(newAccess, newRefresh ?? undefined)
