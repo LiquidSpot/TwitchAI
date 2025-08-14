@@ -9,6 +9,7 @@ import Docs from './pages/Docs'
 import Footer from './components/Footer'
 import Register from './pages/Register'
 import ResetPassword from './pages/ResetPassword'
+import { ToastHost } from './lib/toast'
 
 type Props = { children?: any }
 
@@ -71,6 +72,7 @@ export default function App(props: Props) {
         </div>
       </main>
       <Footer />
+      <ToastHost />
     </div>
   )
 }

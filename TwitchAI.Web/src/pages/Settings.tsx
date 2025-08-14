@@ -1,5 +1,6 @@
 import { createStore } from 'solid-js/store'
 import api from '../lib/api'
+import { toastError, toastSuccess } from '../lib/toast'
 import { getCurrentUserId } from '../lib/user'
 
 type BotSettings = {
@@ -49,6 +50,7 @@ export default function Settings() {
         ...state.settings,
       })
       setState('settings', data?.result as BotSettings)
+      toastSuccess('Настройки сохранены')
     } finally {
       setState('saving', false)
     }

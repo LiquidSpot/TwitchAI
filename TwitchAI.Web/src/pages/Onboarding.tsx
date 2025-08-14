@@ -3,6 +3,7 @@ import { jwtDecode } from 'jwt-decode'
 import { getCurrentUserId } from '../lib/user'
 import api from '../lib/api'
 import { reveal } from '../utils/reveal'
+import { toastError, toastInfo, toastSuccess } from '../lib/toast'
 
 type Step = 0 | 1 | 2 | 3 | 4 | 5
 
@@ -76,8 +77,10 @@ export default function Onboarding() {
         accessToken: state.twitchToken,
         clientId: state.twitchClientId,
       })
-      setState('checkTwitch', !!(data?.result ?? data?.data ?? data?.ok))
-    } catch { setState('checkTwitch', false) }
+      const ok = !!(data?.result ?? data?.data ?? data?.ok)
+      setState('checkTwitch', ok)
+      toastInfo(ok ? 'Twitch OK' : 'Twitch ошибка')
+    } catch { setState('checkTwitch', false); toastError('Twitch ошибка') }
   }
   const doCheckOpenAI = async () => {
     try {
@@ -86,8 +89,10 @@ export default function Onboarding() {
         organizationId: state.openAiOrganizationId || null,
         projectId: state.openAiProjectId || null,
       })
-      setState('checkOpenAI', !!(data?.result ?? data?.data ?? data?.ok))
-    } catch { setState('checkOpenAI', false) }
+      const ok = !!(data?.result ?? data?.data ?? data?.ok)
+      setState('checkOpenAI', ok)
+      toastInfo(ok ? 'OpenAI OK' : 'OpenAI ошибка')
+    } catch { setState('checkOpenAI', false); toastError('OpenAI ошибка') }
   }
 
   const saveAll = async () => {
@@ -123,8 +128,10 @@ export default function Onboarding() {
           enableViewersStats: true,
         })
       } catch {}
+      toastSuccess('Онбординг сохранён')
     } catch {
       setState('saveOk', false)
+      toastError('Ошибка сохранения онбординга')
     } finally {
       setState('saving', false)
     }

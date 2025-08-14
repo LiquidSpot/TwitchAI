@@ -3,6 +3,7 @@ import api from '../lib/api'
 import { reveal } from '../utils/reveal'
 import { jwtDecode } from 'jwt-decode'
 import { getCurrentUserId } from '../lib/user'
+import { toastError, toastInfo, toastSuccess } from '../lib/toast'
 
 export default function Integrations() {
 	const [state, setState] = createStore({
@@ -58,10 +59,13 @@ export default function Integrations() {
 			}
 			if (state.twitchToken) body.twitchAccessToken = state.twitchToken
 			if (state.openaiToken) body.openAiApiKey = state.openaiToken
-			await api.post('/v1.0/user-settings', body)
-			setState('status', 'Сохранено')
+      await api.post('/v1.0/user-settings', body)
+      setState('status', 'Сохранено')
+      toastSuccess('Интеграции сохранены')
 		} catch (e: any) {
-			setState('status', e?.message ?? 'Ошибка')
+      const msg = e?.message ?? 'Ошибка'
+      setState('status', msg)
+      toastError(msg)
 		} finally {
 			setState('saving', false)
 		}
@@ -69,35 +73,39 @@ export default function Integrations() {
 
 	const checkTwitch = async () => {
 		setState('checkingTwitch', true)
-		try {
-			const { data } = await api.post('/v1.0/user-settings/check/twitch', {
-				accessToken: state.twitchToken,
-				clientId: state.twitchClientId,
-			})
-			const ok = !!(data?.result ?? data?.data ?? data?.ok)
-			setState('twitchOk', ok)
-		} catch {
-			setState('twitchOk', false)
-		} finally {
-			setState('checkingTwitch', false)
-		}
+    try {
+      const { data } = await api.post('/v1.0/user-settings/check/twitch', {
+        accessToken: state.twitchToken,
+        clientId: state.twitchClientId,
+      })
+      const ok = !!(data?.result ?? data?.data ?? data?.ok)
+      setState('twitchOk', ok)
+      toastInfo(ok ? 'Twitch OK' : 'Twitch ошибка')
+    } catch {
+      setState('twitchOk', false)
+      toastError('Twitch ошибка')
+    } finally {
+      setState('checkingTwitch', false)
+    }
 	}
 
 	const checkOpenAI = async () => {
 		setState('checkingOpenAI', true)
-		try {
-			const { data } = await api.post('/v1.0/user-settings/check/openai', {
-				apiKey: state.openaiToken,
-				organizationId: state.openAiOrganizationId || null,
-				projectId: state.openAiProjectId || null,
-			})
-			const ok = !!(data?.result ?? data?.data ?? data?.ok)
-			setState('openaiOk', ok)
-		} catch {
-			setState('openaiOk', false)
-		} finally {
-			setState('checkingOpenAI', false)
-		}
+    try {
+      const { data } = await api.post('/v1.0/user-settings/check/openai', {
+        apiKey: state.openaiToken,
+        organizationId: state.openAiOrganizationId || null,
+        projectId: state.openAiProjectId || null,
+      })
+      const ok = !!(data?.result ?? data?.data ?? data?.ok)
+      setState('openaiOk', ok)
+      toastInfo(ok ? 'OpenAI OK' : 'OpenAI ошибка')
+    } catch {
+      setState('openaiOk', false)
+      toastError('OpenAI ошибка')
+    } finally {
+      setState('checkingOpenAI', false)
+    }
 	}
 
 	return (
