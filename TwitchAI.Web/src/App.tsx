@@ -1,4 +1,5 @@
-import { useNavigate } from '@solidjs/router'
+import { useNavigate, useLocation } from '@solidjs/router'
+import { Show } from 'solid-js'
 import { BRAND_ICON, BRAND_NAME } from './utils/brand'
 import Login from './pages/Login'
 import Settings from './pages/Settings'
@@ -7,12 +8,15 @@ import Features from './pages/Features'
 import Pricing from './pages/Pricing'
 import Docs from './pages/Docs'
 import Footer from './components/Footer'
+import Register from './pages/Register'
+import ResetPassword from './pages/ResetPassword'
 
 type Props = { children?: any }
 
 export default function App(props: Props) {
   const navigate = useNavigate()
   const token = () => localStorage.getItem('access_token')
+  const location = useLocation()
 
   return (
     <div class="min-h-screen text-white">
@@ -38,7 +42,21 @@ export default function App(props: Props) {
       </nav>
 
       <main class="pt-24">
-        {props.children}
+        <Show when={location.pathname} keyed>
+          {() => (
+            <div
+              class="route-fade"
+              ref={el => {
+                // force reflow to restart transition
+                // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+                (el as HTMLElement).offsetHeight
+                requestAnimationFrame(() => el.classList.add('route-fade-show'))
+              }}
+            >
+              {props.children}
+            </div>
+          )}
+        </Show>
       </main>
       <Footer />
     </div>

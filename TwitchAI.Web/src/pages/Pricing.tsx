@@ -1,3 +1,5 @@
+import { reveal } from '../utils/reveal'
+
 export default function Pricing() {
   const tiers = [
     { name: 'Free', price: '$0', features: ['1 канал', 'Базовые функции', 'Community support'] },
@@ -6,16 +8,16 @@ export default function Pricing() {
   ]
   return (
     <div class="max-w-6xl mx-auto px-4">
-      <h1 class="text-3xl mb-6">Цены</h1>
+      <h1 class="text-3xl mb-6" ref={el => reveal(el, () => ({}))}>Цены</h1>
       <div class="grid md:grid-cols-3 gap-4">
-        {tiers.map(t => (
-          <div class="card-secondary glow-hover p-6 text-center">
-            <div class="text-xl">{t.name}</div>
-            <div class="text-3xl my-2">{t.price}</div>
+        {tiers.map((t, idx) => (
+          <div class="card-secondary glow-hover p-6 text-center" ref={el => reveal(el, () => ({ delayMs: idx * 120 }))}>
+            <div class="text-xl" ref={el => reveal(el, () => ({ delayMs: 60 }))}>{t.name}</div>
+            <div class="text-3xl my-2" ref={el => reveal(el, () => ({ delayMs: 120 }))}>{t.price}</div>
             <ul class="text-slate-300 space-y-1">
-              {t.features.map(f => <li>{f}</li>)}
+              {t.features.map((f, i) => <li ref={el => reveal(el, () => ({ delayMs: 150 + i * 100 }))}>{f}</li>)}
             </ul>
-            <button class="btn btn-primary mt-4 w-full">Выбрать</button>
+            <button class="btn btn-primary mt-4 w-full" ref={el => reveal(el, () => ({ delayMs: 200 }))}>Выбрать</button>
           </div>
         ))}
       </div>
