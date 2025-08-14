@@ -1,36 +1,38 @@
-import { createSignal } from 'solid-js'
+import { createStore } from 'solid-js/store'
 import api from '../lib/api'
+import { saveTokens } from '../lib/auth'
 
 export default function Login() {
-  const [email, setEmail] = createSignal('')
-  const [password, setPassword] = createSignal('')
-  const [loading, setLoading] = createSignal(false)
-  const [error, setError] = createSignal<string | null>(null)
+  const [state, setState] = createStore<{ email: string; password: string; loading: boolean; error: string | null }>({
+    email: '',
+    password: '',
+    loading: false,
+    error: null,
+  })
 
   const onSubmit = async (e: Event) => {
     e.preventDefault()
-    setError(null)
-    setLoading(true)
+    setState('error', null)
+    setState('loading', true)
     try {
-      const { data } = await api.post('/v1/auth/login', { email: email(), password: password() })
+      const { data } = await api.post('/v1/auth/login', { email: state.email, password: state.password })
       if (data?.result?.access || data?.result?.refresh) {
         // ожидаем формат LSResponse<(access, refresh)>
         const access = data.result.access ?? data.result?.item1
         const refresh = data.result.refresh ?? data.result?.item2
-        if (access) localStorage.setItem('access_token', access)
-        if (refresh) localStorage.setItem('refresh_token', refresh)
+        saveTokens(access ?? null, refresh ?? undefined)
         location.href = '/settings'
       } else if (data?.result) {
         // совместимость: строковый токен
-        localStorage.setItem('access_token', data.result)
+        saveTokens(data.result ?? null, undefined)
         location.href = '/settings'
       } else {
-        setError('Неверный логин или пароль')
+        setState('error', 'Неверный логин или пароль')
       }
     } catch (err: any) {
-      setError(err?.message ?? 'Ошибка входа')
+      setState('error', err?.message ?? 'Ошибка входа')
     } finally {
-      setLoading(false)
+      setState('loading', false)
     }
   }
 
@@ -38,10 +40,10 @@ export default function Login() {
     <div class="max-w-md mx-auto p-6 glass">
       <h1 class="text-2xl mb-4">Вход</h1>
       <form onSubmit={onSubmit} class="space-y-3">
-        <input class="input" type="email" placeholder="Email" value={email()} onInput={e => setEmail(e.currentTarget.value)} />
-        <input class="input" type="password" placeholder="Пароль" value={password()} onInput={e => setPassword(e.currentTarget.value)} />
-        {error() && <div class="text-red-400 text-sm">{error()}</div>}
-        <button class="btn btn-primary w-full" disabled={loading()}>{loading() ? '...' : 'Войти'}</button>
+        <input class="input" type="email" placeholder="Email" value={state.email} onInput={e => setState('email', e.currentTarget.value)} />
+        <input class="input" type="password" placeholder="Пароль" value={state.password} onInput={e => setState('password', e.currentTarget.value)} />
+        {state.error && <div class="text-red-400 text-sm">{state.error}</div>}
+        <button class="btn btn-primary w-full" disabled={state.loading}>{state.loading ? '...' : 'Войти'}</button>
       </form>
     </div>
   )

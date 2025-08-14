@@ -9,6 +9,7 @@ import Login from './pages/Login'
 import Settings from './pages/Settings'
 import Register from './pages/Register'
 import ResetPassword from './pages/ResetPassword'
+import Protected from './components/Protected'
 import './index.css'
 
 render(() => (
@@ -24,7 +25,11 @@ render(() => (
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
       <Route path="/reset-password" component={ResetPassword} />
-      <Route path="/settings" component={Settings} />
+      <Route path="/settings" component={() => (
+        <Protected>
+          <Settings />
+        </Protected>
+      )} />
 
       <Route path="*" component={Home} />
     </Route>
