@@ -1,5 +1,6 @@
 import { createStore } from 'solid-js/store'
 import { jwtDecode } from 'jwt-decode'
+import { getCurrentUserId } from '../lib/user'
 import api from '../lib/api'
 import { reveal } from '../utils/reveal'
 
@@ -35,12 +36,31 @@ export default function Onboarding() {
       if (saved) {
         try { setState(JSON.parse(saved)) } catch {}
       }
-      const t = localStorage.getItem('access_token')
-      if (t) {
-        try {
-          const payload = jwtDecode<{ sub?: string }>(t)
-          if (payload?.sub) setState('userId', payload.sub)
-        } catch {}
+      const uid0 = getCurrentUserId()
+      if (uid0) setState('userId', uid0)
+      const uid = (state as any).userId as string
+      if (uid) {
+        api.get('/v1.0/user-settings', { params: { userId: uid } })
+          .then(({ data }) => {
+            const s = data?.result ?? data?.data ?? null
+            if (s) {
+              setState('twitchClientId', s.twitchClientId ?? '')
+              setState('openAiOrganizationId', s.openAiOrganizationId ?? '')
+              setState('openAiProjectId', s.openAiProjectId ?? '')
+            }
+          })
+          .catch(() => {})
+
+        // подтянуть текущие настройки бота
+        api.get('/v1.0/bot/config', { params: { userId: uid } })
+          .then(({ data }) => {
+            const b = data?.result ?? data?.data ?? null
+            if (b) {
+              if (typeof b.defaultRole === 'string') setState('botRole', b.defaultRole)
+              if (typeof b.cooldownSeconds === 'number') setState('cooldownSeconds', b.cooldownSeconds)
+            }
+          })
+          .catch(() => {})
       }
       saveDraft()
     } catch {}
@@ -88,6 +108,21 @@ export default function Onboarding() {
       }
       const { data } = await api.post('/v1.0/user-settings', body)
       setState('saveOk', !!(data?.success ?? data?.ok ?? data?.result))
+      try {
+        await api.put('/v1.0/bot/config', {
+          userId: state.userId,
+          defaultRole: state.botRole,
+          cooldownSeconds: state.cooldownSeconds,
+          replyLimit: 3,
+          enableAi: true,
+          enableCompliment: true,
+          enableFact: true,
+          enableHoliday: true,
+          enableTranslation: true,
+          enableSoundAlerts: true,
+          enableViewersStats: true,
+        })
+      } catch {}
     } catch {
       setState('saveOk', false)
     } finally {
@@ -188,6 +223,11 @@ export default function Onboarding() {
             {state.saveOk === true && <span class="text-green-400">Сохранено</span>}
             {state.saveOk === false && <span class="text-red-400">Ошибка сохранения</span>}
           </div>
+          {state.saveOk === true && (
+            <div class="pt-2">
+              <a class="btn" href="/dashboard">Перейти в дашборд</a>
+            </div>
+          )}
         </div>
       )}
     </div>
