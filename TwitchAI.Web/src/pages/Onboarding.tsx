@@ -1,5 +1,4 @@
 import { createStore } from 'solid-js/store'
-import { onMount } from 'solid-js'
 import { jwtDecode } from 'jwt-decode'
 import api from '../lib/api'
 import { reveal } from '../utils/reveal'
@@ -29,22 +28,23 @@ export default function Onboarding() {
     try { localStorage.setItem('onboarding_draft', JSON.stringify(state)) } catch {}
   }
 
-  // черновик в localStorage
-  onMount(() => {
-    const saved = localStorage.getItem('onboarding_draft')
-    if (saved) {
-      try { setState(JSON.parse(saved)) } catch {}
-    }
-    // получить userId из access_token
+  // инициализация: загрузить черновик и userId
+  ;(() => {
     try {
+      const saved = localStorage.getItem('onboarding_draft')
+      if (saved) {
+        try { setState(JSON.parse(saved)) } catch {}
+      }
       const t = localStorage.getItem('access_token')
       if (t) {
-        const payload = jwtDecode<{ sub?: string }>(t)
-        if (payload?.sub) setState('userId', payload.sub)
+        try {
+          const payload = jwtDecode<{ sub?: string }>(t)
+          if (payload?.sub) setState('userId', payload.sub)
+        } catch {}
       }
+      saveDraft()
     } catch {}
-    saveDraft()
-  })
+  })()
 
   const total = 6
   const next = () => { setState('step', Math.min(state.step + 1, total - 1) as Step); saveDraft() }
