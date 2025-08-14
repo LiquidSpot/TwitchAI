@@ -6,13 +6,15 @@ export default function Home() {
   return (
     <div class="max-w-6xl mx-auto px-4 space-y-24">
       <section class="glass p-10 text-center" ref={el => reveal(el, () => ({}))}>
-        <h1 class="text-3xl md:text-5xl font-semibold mb-4">TwitchAI — умный бот для вашего Twitch канала</h1>
+        <div class="flex items-center justify-center gap-3 mb-4">
+          <h1 class="text-3xl md:text-5xl font-semibold">TwitchAI — умный бот для вашего Twitch канала</h1>
+        </div>
         <p class="text-slate-300 max-w-3xl mx-auto">
           Чат с ИИ, переводы, звуковые алерты, праздники и аналитика — всё в одном решении. Простая настройка, современный дизайн, высокая надёжность.
         </p>
         <div class="mt-6 flex justify-center gap-3">
-          <button class="btn bg-primary hover:bg-primary/90" onClick={() => navigate('/login')}>Попробовать бесплатно</button>
-          <button class="btn" onClick={() => navigate('/docs')}>Документация</button>
+          <button class="btn btn-primary" onClick={() => navigate('/login')}>Попробовать бесплатно</button>
+          <button class="btn btn-secondary" onClick={() => navigate('/docs')}>Документация</button>
         </div>
       </section>
 
@@ -26,7 +28,7 @@ export default function Home() {
           { id: 'settings', title: 'Гибкие настройки', desc: 'Порог частоты ответов, ограничения и персонализация.' },
         ].map((card, idx) => (
           <a href={`/features#${card.id}`} class="block">
-            <div class="glass p-6 glow-hover cursor-pointer" ref={el => reveal(el, () => ({ delayMs: idx * 100 }))}>
+            <div class="card-secondary p-6 glow-hover cursor-pointer" ref={el => reveal(el, () => ({ delayMs: idx * 100 }))}>
               <div class="text-xl font-medium mb-2">{card.title}</div>
               <div class="text-slate-300">{card.desc}</div>
             </div>
@@ -51,7 +53,7 @@ export default function Home() {
             'Подключение Twitch и OpenAI токенов, проверка в 1 клик',
             'Включение нужных функций: чат, переводы, алерты, аналитика',
           ].map((step, i) => (
-            <li class="glass p-6" ref={el => reveal(el, () => ({ delayMs: i * 120 }))}>
+            <li class="card-secondary p-6 glow-hover" ref={el => reveal(el, () => ({ delayMs: i * 120 }))}>
               <div class="text-accent mb-1">Шаг {i + 1}</div>
               <div class="text-slate-200">{step}</div>
             </li>
@@ -81,8 +83,8 @@ export default function Home() {
         <h2 class="text-2xl md:text-3xl font-semibold mb-3">Готовы попробовать?</h2>
         <p class="text-slate-300">Запустите бота за пару минут — регистрация бесплатная.</p>
         <div class="mt-6 flex justify-center gap-3">
-          <button class="btn bg-primary hover:bg-primary/90" onClick={() => navigate('/login')}>Начать</button>
-          <button class="btn" onClick={() => navigate('/features')}>Посмотреть возможности</button>
+          <button class="btn btn-primary" onClick={() => navigate('/login')}>Начать</button>
+          <button class="btn btn-secondary" onClick={() => navigate('/features')}>Посмотреть возможности</button>
         </div>
       </section>
     </div>

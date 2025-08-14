@@ -41,7 +41,7 @@ export default function Login() {
         <input class="input" type="email" placeholder="Email" value={email()} onInput={e => setEmail(e.currentTarget.value)} />
         <input class="input" type="password" placeholder="Пароль" value={password()} onInput={e => setPassword(e.currentTarget.value)} />
         {error() && <div class="text-red-400 text-sm">{error()}</div>}
-        <button class="btn w-full" disabled={loading()}>{loading() ? '...' : 'Войти'}</button>
+        <button class="btn btn-primary w-full" disabled={loading()}>{loading() ? '...' : 'Войти'}</button>
       </form>
     </div>
   )

@@ -1,4 +1,4 @@
-import { A } from '@solidjs/router'
+ 
 
 export default function Features() {
   const toc = [
@@ -16,16 +16,16 @@ export default function Features() {
 
       <div class="grid md:grid-cols-3 gap-4">
         {toc.map(item => (
-          <A href={`#${item.id}`} class="block">
-            <div class="glass p-5 glow-hover cursor-pointer">
+          <a href={`#${item.id}`} class="block">
+            <div class="card-secondary p-5 glow-hover cursor-pointer">
               <div class="text-xl mb-1">{item.title}</div>
               <div class="text-slate-300">{item.desc}</div>
             </div>
-          </A>
+          </a>
         ))}
       </div>
 
-      <section id="ai" class="glass p-6 scroll-mt-28">
+      <section id="ai" class="card-secondary p-6 scroll-mt-28">
         <h2 class="text-2xl mb-3">ИИ-диалоги: что это представляет из себя</h2>
         <ul class="list-disc pl-5 space-y-1 text-slate-300">
           <li>Контекстные ответы с историей переписки и ролями бота.</li>
@@ -35,7 +35,7 @@ export default function Features() {
         </ul>
       </section>
 
-      <section id="integrations" class="glass p-6 scroll-mt-28">
+      <section id="integrations" class="card-secondary p-6 scroll-mt-28">
         <h2 class="text-2xl mb-3">Интеграции: какие и как</h2>
         <ul class="list-disc pl-5 space-y-1 text-slate-300">
           <li>Twitch: подключение канала, чтение чата, идентификация зрителей.</li>
@@ -45,7 +45,7 @@ export default function Features() {
         </ul>
       </section>
 
-      <section id="content" class="glass p-6 scroll-mt-28">
+      <section id="content" class="card-secondary p-6 scroll-mt-28">
         <h2 class="text-2xl mb-3">Контент: что за контент</h2>
         <ul class="list-disc pl-5 space-y-1 text-slate-300">
           <li>Переводы сообщений и ответов на популярные языки.</li>
@@ -55,7 +55,7 @@ export default function Features() {
         </ul>
       </section>
 
-      <section id="moderation" class="glass p-6 scroll-mt-28">
+      <section id="moderation" class="card-secondary p-6 scroll-mt-28">
         <h2 class="text-2xl mb-3">Модерация: как это помогает</h2>
         <ul class="list-disc pl-5 space-y-1 text-slate-300">
           <li>Базовые фильтры, автоответы и подсветка запрещённого.</li>
@@ -64,7 +64,7 @@ export default function Features() {
         </ul>
       </section>
 
-      <section id="analytics" class="glass p-6 scroll-mt-28">
+      <section id="analytics" class="card-secondary p-6 scroll-mt-28">
         <h2 class="text-2xl mb-3">Статистика: что показываем</h2>
         <ul class="list-disc pl-5 space-y-1 text-slate-300">
           <li>Активные, молчаливые и общие зрители по периодам.</li>
@@ -73,7 +73,7 @@ export default function Features() {
         </ul>
       </section>
 
-      <section id="settings" class="glass p-6 scroll-mt-28">
+      <section id="settings" class="card-secondary p-6 scroll-mt-28">
         <h2 class="text-2xl mb-3">Гибкие настройки: как персонализировать</h2>
         <ul class="list-disc pl-5 space-y-1 text-slate-300">
           <li>Порог частоты ответов, длина, форматирование.</li>

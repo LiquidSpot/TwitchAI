@@ -1,4 +1,4 @@
-import { A } from '@solidjs/router'
+ 
 
 export default function Footer() {
   return (
@@ -19,8 +19,8 @@ export default function Footer() {
           <div class="text-white font-semibold mb-3">Лицензия</div>
           <p class="text-sm">Проект распространяется по лицензии Apache 2.0.</p>
           <div class="mt-2 flex gap-3">
-            <A href="/docs" class="btn bg-white/10">Документация</A>
-            <a class="btn" href="https://www.apache.org/licenses/LICENSE-2.0" target="_blank" rel="noreferrer">Apache 2.0</a>
+            <a href="/docs" class="btn btn-secondary">Документация</a>
+            <a class="btn btn-secondary" href="https://www.apache.org/licenses/LICENSE-2.0" target="_blank" rel="noreferrer">Apache 2.0</a>
           </div>
         </div>
 
