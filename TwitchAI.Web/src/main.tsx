@@ -1,5 +1,6 @@
 import { render } from 'solid-js/web'
 import { Router, Route } from '@solidjs/router'
+// lazy/Suspense недоступны в текущей типовой конфигурации, используем прямые импорты
 import App from './App'
 import Home from './pages/Home'
 import Features from './pages/Features'
@@ -13,7 +14,9 @@ import Protected from './components/Protected'
 import Dashboard from './pages/Dashboard'
 import Integrations from './pages/Integrations'
 import Onboarding from './pages/Onboarding'
+import NotFound from './pages/NotFound'
 import './index.css'
+import ErrorBoundary from './components/ErrorBoundary'
 
 render(() => (
   <Router>
@@ -30,26 +33,34 @@ render(() => (
       <Route path="/reset-password" component={ResetPassword} />
       <Route path="/dashboard" component={() => (
         <Protected>
-          <Dashboard />
+          <ErrorBoundary>
+            <Dashboard />
+          </ErrorBoundary>
         </Protected>
       )} />
       <Route path="/integrations" component={() => (
         <Protected>
-          <Integrations />
+          <ErrorBoundary>
+            <Integrations />
+          </ErrorBoundary>
         </Protected>
       )} />
       <Route path="/onboarding" component={() => (
         <Protected>
-          <Onboarding />
+          <ErrorBoundary>
+            <Onboarding />
+          </ErrorBoundary>
         </Protected>
       )} />
       <Route path="/settings" component={() => (
         <Protected>
-          <Settings />
+          <ErrorBoundary>
+            <Settings />
+          </ErrorBoundary>
         </Protected>
       )} />
 
-      <Route path="*" component={Home} />
+      <Route path="*" component={NotFound} />
     </Route>
   </Router>
 ), document.getElementById('root') as HTMLElement)

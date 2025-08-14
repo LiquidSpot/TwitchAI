@@ -16,15 +16,14 @@ export default function Login() {
     setState('loading', true)
     try {
       const { data } = await api.post('/v1.0/auth/login', { email: state.email, password: state.password })
-      if (data?.result?.access || data?.result?.refresh) {
-        // ожидаем формат LSResponse<(access, refresh)>
-        const access = data.result.access ?? data.result?.item1
-        const refresh = data.result.refresh ?? data.result?.item2
-        saveTokens(access ?? null, refresh ?? undefined)
+      const r = data?.Result ?? data?.result ?? data
+      const access = r?.access ?? r?.token ?? r?.Item1 ?? r?.item1 ?? null
+      const refresh = r?.refresh ?? r?.Item2 ?? r?.item2 ?? null
+      if (access) {
+        saveTokens(access, refresh ?? undefined)
         location.href = '/settings'
-      } else if (data?.result) {
-        // совместимость: строковый токен
-        saveTokens(data.result ?? null, undefined)
+      } else if (typeof r === 'string') {
+        saveTokens(r, undefined)
         location.href = '/settings'
       } else {
         setState('error', 'Неверный логин или пароль')

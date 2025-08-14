@@ -19,6 +19,10 @@ export default function Integrations() {
 		checkingOpenAI: false,
 		twitchOk: null as null | boolean,
 		openaiOk: null as null | boolean,
+		pulseTwitch: false,
+		pulseOpenAI: false,
+		successTwitch: false,
+		successOpenAI: false,
 		maskTwitch: true,
 		maskOpenAI: true,
 	})
@@ -74,17 +78,23 @@ export default function Integrations() {
 	const checkTwitch = async () => {
 		setState('checkingTwitch', true)
     try {
-      const { data } = await api.post('/v1.0/user-settings/check/twitch', {
-        accessToken: state.twitchToken,
-        clientId: state.twitchClientId,
-      })
-      const ok = !!(data?.result ?? data?.data ?? data?.ok)
-      setState('twitchOk', ok)
-      toastInfo(ok ? 'Twitch OK' : 'Twitch ошибка')
-    } catch {
+      const token = (state.twitchToken || '').trim()
+      const client = (state.twitchClientId || '').trim()
+      const payload: any = { AccessToken: token, ClientId: client, accessToken: token, clientId: client }
+      const { data } = await api.post('/v1.0/user-settings/check/twitch', payload, { headers: { 'Content-Type': 'application/json' }})
+      const val = (data?.result ?? data?.data ?? data) as any
+      const ok = val && ((typeof val === 'string' && val.toLowerCase() === 'ok') || (typeof val === 'object' && val?.ok === true))
+		setState('twitchOk', !!ok)
+		if (ok) { toastInfo('Twitch OK'); setState('successTwitch', true); setTimeout(() => setState('successTwitch', false), 1000) } else { toastError('Twitch ошибка'); setState('pulseTwitch', true); setTimeout(() => setState('pulseTwitch', false), 1000) }
+      if (!ok) { setState('pulseTwitch', true); setTimeout(() => setState('pulseTwitch', false), 1000) }
+    } catch (err: any) {
       setState('twitchOk', false)
-      toastError('Twitch ошибка')
-    } finally {
+      const title = err?.response?.data?.title as string | undefined
+      const hasValidation = err?.response?.status === 400 && (!!err?.response?.data?.errors || title?.includes('validat'))
+      const msg = hasValidation ? 'Ошибка валидации полей' : 'Twitch ошибка'
+      toastError(msg)
+      setState('pulseTwitch', true); setTimeout(() => setState('pulseTwitch', false), 1000)
+		} finally {
       setState('checkingTwitch', false)
     }
 	}
@@ -92,18 +102,31 @@ export default function Integrations() {
 	const checkOpenAI = async () => {
 		setState('checkingOpenAI', true)
     try {
-      const { data } = await api.post('/v1.0/user-settings/check/openai', {
-        apiKey: state.openaiToken,
-        organizationId: state.openAiOrganizationId || null,
-        projectId: state.openAiProjectId || null,
-      })
-      const ok = !!(data?.result ?? data?.data ?? data?.ok)
-      setState('openaiOk', ok)
-      toastInfo(ok ? 'OpenAI OK' : 'OpenAI ошибка')
-    } catch {
+      const key = (state.openaiToken || '').trim()
+      const org = (state.openAiOrganizationId || '').trim() || null
+      const proj = (state.openAiProjectId || '').trim() || null
+      const payload: any = {
+        ApiKey: key,
+        apiKey: key,
+        OrganizationId: org,
+        organizationId: org,
+        ProjectId: proj,
+        projectId: proj,
+      }
+      const { data } = await api.post('/v1.0/user-settings/check/openai', payload, { headers: { 'Content-Type': 'application/json' }})
+      const val = (data?.result ?? data?.data ?? data) as any
+      const ok = val && ((typeof val === 'string' && val.toLowerCase() === 'ok') || (typeof val === 'object' && val?.ok === true))
+		setState('openaiOk', !!ok)
+		if (ok) { toastInfo('OpenAI OK'); setState('successOpenAI', true); setTimeout(() => setState('successOpenAI', false), 1000) } else { toastError('OpenAI ошибка'); setState('pulseOpenAI', true); setTimeout(() => setState('pulseOpenAI', false), 1000) }
+      if (!ok) { setState('pulseOpenAI', true); setTimeout(() => setState('pulseOpenAI', false), 1000) }
+    } catch (err: any) {
       setState('openaiOk', false)
-      toastError('OpenAI ошибка')
-    } finally {
+      const title = err?.response?.data?.title as string | undefined
+      const hasValidation = err?.response?.status === 400 && (!!err?.response?.data?.errors || title?.includes('validat'))
+      const msg = hasValidation ? 'Ошибка валидации полей' : (err?.response?.data?.errors?.ApiKey?.[0] || err?.message || 'OpenAI ошибка')
+      toastError(msg)
+      setState('pulseOpenAI', true); setTimeout(() => setState('pulseOpenAI', false), 1000)
+		} finally {
       setState('checkingOpenAI', false)
     }
 	}
@@ -121,7 +144,10 @@ export default function Integrations() {
 							<button type="button" class="btn" onClick={() => setState('maskTwitch', !state.maskTwitch)}>{state.maskTwitch ? 'Показать' : 'Скрыть'}</button>
 						</div>
 						<div class="flex items-center gap-2">
-							<button type="button" class="btn btn-secondary" onClick={checkTwitch} disabled={state.checkingTwitch || !state.twitchClientId || !state.twitchToken}>{state.checkingTwitch ? '...' : 'Проверить'}</button>
+						<button type="button" class={`btn btn-secondary ${state.pulseTwitch ? '!bg-red-600/60 !border-red-400/60 ring-2 ring-red-400/60' : ''} ${state.successTwitch ? '!bg-green-600/60 !border-green-400/60 ring-2 ring-green-400/60' : ''}`} onClick={checkTwitch} disabled={state.checkingTwitch || !state.twitchClientId || !state.twitchToken}>
+							{state.checkingTwitch && (<span class="mr-2 h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />)}
+							{state.checkingTwitch ? 'Проверяем...' : 'Проверить'}
+						</button>
 							{state.twitchOk !== null && (
 								<span class={state.twitchOk ? 'text-green-400' : 'text-red-400'}>{state.twitchOk ? 'OK' : 'Ошибка'}</span>
 							)}
@@ -136,7 +162,10 @@ export default function Integrations() {
 							<button type="button" class="btn" onClick={() => setState('maskOpenAI', !state.maskOpenAI)}>{state.maskOpenAI ? 'Показать' : 'Скрыть'}</button>
 						</div>
 						<div class="flex items-center gap-2">
-							<button type="button" class="btn btn-secondary" onClick={checkOpenAI} disabled={state.checkingOpenAI || !state.openaiToken}>{state.checkingOpenAI ? '...' : 'Проверить'}</button>
+						<button type="button" class={`btn btn-secondary ${state.pulseOpenAI ? '!bg-red-600/60 !border-red-400/60 ring-2 ring-red-400/60' : ''} ${state.successOpenAI ? '!bg-green-600/60 !border-green-400/60 ring-2 ring-green-400/60' : ''}`} onClick={checkOpenAI} disabled={state.checkingOpenAI || !state.openaiToken}>
+							{state.checkingOpenAI && (<span class="mr-2 h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />)}
+							{state.checkingOpenAI ? 'Проверяем...' : 'Проверить'}
+						</button>
 							{state.openaiOk !== null && (
 								<span class={state.openaiOk ? 'text-green-400' : 'text-red-400'}>{state.openaiOk ? 'OK' : 'Ошибка'}</span>
 							)}

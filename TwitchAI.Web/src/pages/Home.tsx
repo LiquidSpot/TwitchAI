@@ -5,7 +5,7 @@ export default function Home() {
   const navigate = useNavigate()
   return (
     <div class="max-w-6xl mx-auto px-4 space-y-24">
-      <section class="glass p-10 text-center" ref={el => reveal(el, () => ({}))}>
+      <section class="glass p-10 text-center" ref={el => reveal(el, () => ({ delayMs: 50 }))}>
         <div class="flex items-center justify-center gap-3 mb-4">
           <h1 class="text-3xl md:text-5xl font-semibold">TwitchAI — умный бот для вашего Twitch канала</h1>
         </div>
@@ -36,7 +36,7 @@ export default function Home() {
         ))}
       </section>
 
-      <section class="glass p-8" ref={el => reveal(el, () => ({}))}>
+      <section class="glass p-8" ref={el => reveal(el, () => ({ delayMs: 120 }))}>
         <h2 class="text-2xl mb-3">Почему TwitchAI</h2>
         <ul class="list-disc pl-5 space-y-1 text-slate-300">
           <li>Чистая архитектура .NET 8 + надёжная инфраструктура</li>
@@ -53,7 +53,7 @@ export default function Home() {
             'Подключение Twitch и OpenAI токенов, проверка в 1 клик',
             'Включение нужных функций: чат, переводы, алерты, аналитика',
           ].map((step, i) => (
-            <li class="card-secondary p-6 glow-hover" ref={el => reveal(el, () => ({ delayMs: i * 120 }))}>
+            <li class="card-secondary p-6 glow-hover" ref={el => reveal(el, () => ({ delayMs: 200 + i * 200 }))}>
               <div class="text-accent mb-1">Шаг {i + 1}</div>
               <div class="text-slate-200">{step}</div>
             </li>
@@ -61,7 +61,7 @@ export default function Home() {
         </ol>
       </section>
 
-      <section class="glass p-8" ref={el => reveal(el, () => ({}))}>
+      <section class="glass p-8" ref={el => reveal(el, () => ({ delayMs: 120 }))}>
         <h2 class="text-2xl mb-4">Ответы на вопросы</h2>
         <div class="space-y-3 text-slate-300">
           <div>
@@ -79,7 +79,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section class="glass p-10 text-center" ref={el => reveal(el, () => ({}))}>
+      <section class="glass p-10 text-center" ref={el => reveal(el, () => ({ delayMs: 150 }))}>
         <h2 class="text-2xl md:text-3xl font-semibold mb-3">Готовы попробовать?</h2>
         <p class="text-slate-300">Запустите бота за пару минут — регистрация бесплатная.</p>
         <div class="mt-6 flex justify-center gap-3">

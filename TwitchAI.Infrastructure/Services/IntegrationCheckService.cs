@@ -32,10 +32,24 @@ internal class IntegrationCheckService : IIntegrationCheckService
             })
             .Build();
 
-        var result = await _httpClient.ExecuteRequestAsync<object>(request, Constants.TwitchApiClientKey, ct).ConfigureAwait(false);
-        if (result.Status != Common.Packages.Response.Enums.ResponseStatus.Success)
+        try
+        {
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            cts.CancelAfter(TimeSpan.FromSeconds(8));
+
+            var result = await _httpClient
+                .ExecuteRequestAsync<object>(request, Constants.TwitchApiClientKey, cts.Token)
+                .ConfigureAwait(false);
+
+            if (result.Status != Common.Packages.Response.Enums.ResponseStatus.Success)
+                return resp.Success("error");
+            return resp.Success("ok");
+        }
+        catch
+        {
+            // Любая сетевая ошибка/таймаут трактуем как ошибку проверки
             return resp.Success("error");
-        return resp.Success("ok");
+        }
     }
 
     public async Task<LSResponse<string>> CheckOpenAiAsync(string apiKey, string? organizationId, string? projectId, CancellationToken ct)
@@ -55,10 +69,23 @@ internal class IntegrationCheckService : IIntegrationCheckService
             .WithHeaders(headers)
             .Build();
 
-        var result = await _httpClient.ExecuteRequestAsync<object>(request, Constants.OpenAiClientKey, ct).ConfigureAwait(false);
-        if (result.Status != Common.Packages.Response.Enums.ResponseStatus.Success)
+        try
+        {
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            cts.CancelAfter(TimeSpan.FromSeconds(8));
+
+            var result = await _httpClient
+                .ExecuteRequestAsync<object>(request, Constants.OpenAiClientKey, cts.Token)
+                .ConfigureAwait(false);
+
+            if (result.Status != Common.Packages.Response.Enums.ResponseStatus.Success)
+                return resp.Success("error");
+            return resp.Success("ok");
+        }
+        catch
+        {
             return resp.Success("error");
-        return resp.Success("ok");
+        }
     }
 }
 

@@ -35,6 +35,9 @@ async function refreshToken(): Promise<string | null> {
     pendingQueue = []
     return newAccess
   } catch (e) {
+    // Не разлогиниваем пользователя немедленно; вернём 401 вызывающему коду
+    // чтобы он мог обработать локально (например, показать ошибку проверки)
+    // и не будем редиректить здесь.
     saveTokens(null, null)
     pendingQueue.forEach(cb => cb(null))
     pendingQueue = []
@@ -59,8 +62,10 @@ api.interceptors.response.use(
           return api.request(original)
         }
       } catch {}
-      clearTokens()
-      try { window.location.href = '/login' } catch {}
+      // Не делаем мгновенный logout/редирект на /login, чтобы не выбивать пользователя
+      // при временной ошибке интеграции. Пусть ошибка вернётся вызывающему коду.
+      // clearTokens() и redirect — отключены.
+      // clearTokens(); window.location.href = '/login'
       // отдадим исходную ошибку
     }
     return Promise.reject(error)

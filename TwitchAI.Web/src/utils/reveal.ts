@@ -1,4 +1,5 @@
-import { onCleanup } from 'solid-js'
+/* eslint-disable @typescript-eslint/no-unused-vars */
+
 
 export type RevealOptions = {
   threshold?: number
@@ -33,7 +34,10 @@ export function reveal(el: HTMLElement, accessor: () => RevealOptions | undefine
   el.classList.add('reveal')
   observer.observe(el)
 
-  onCleanup(() => observer.disconnect())
+  // SolidJS типовые импорты могут отсутствовать в актуальной конфигурации,
+  // поэтому используем нативный cleanup через событие удаления узла.
+  const cleanup = () => observer.disconnect()
+  el.addEventListener('DOMNodeRemovedFromDocument', cleanup, { once: true } as any)
 }
 
 

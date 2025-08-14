@@ -8,7 +8,11 @@ try {
 } catch {}
 
 export function getAccessToken(): string | null {
-  return memoryAccessToken
+  // Вернём только валидно выглядящий JWT (3 части через точки)
+  if (typeof memoryAccessToken === 'string' && memoryAccessToken.split('.').length === 3) {
+    return memoryAccessToken
+  }
+  return null
 }
 
 export function getRefreshToken(): string | null {
@@ -23,7 +27,8 @@ export function isAuthenticated(): boolean {
 export function saveTokens(access?: string | null, refresh?: string | null) {
   if (typeof access !== 'undefined') {
     memoryAccessToken = access
-    if (access) localStorage.setItem('access_token', access)
+    // Сохраняем только корректный JWT в localStorage, иначе держим в памяти
+    if (access && access.split('.').length === 3) localStorage.setItem('access_token', access)
     else localStorage.removeItem('access_token')
   }
   if (typeof refresh !== 'undefined') {
