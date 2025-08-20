@@ -117,7 +117,7 @@ internal sealed class TwitchIntegrationService : ITwitchIntegrationService, IDis
         // Но в нем нет MessageId отправленного сообщения, поэтому нужна другая стратегия
     }
 
-    private async Task SaveBotMessageAsync(string message)
+    private async Task SaveBotMessageAsync(string message, Guid? conversationMessageId)
     {
         try
         {
@@ -134,10 +134,11 @@ internal sealed class TwitchIntegrationService : ITwitchIntegrationService, IDis
             var chatMessage = await twitchUserService.SaveBotMessageAsync(botSentMessage, CancellationToken.None);
 
             // Связываем с ConversationMessage если есть (делаем это сразу)
-            if (ConversationContext.ConversationMessageId.HasValue)
+            var convId = conversationMessageId ?? ConversationContext.ConversationMessageId;
+            if (convId.HasValue)
             {
                 var linked = await twitchUserService.LinkConversationWithBotMessageAsync(
-                    ConversationContext.ConversationMessageId.Value, 
+                    convId.Value, 
                     chatMessage.Id, 
                     CancellationToken.None
                 );
@@ -146,14 +147,17 @@ internal sealed class TwitchIntegrationService : ITwitchIntegrationService, IDis
                 {
                     Method = nameof(SaveBotMessageAsync),
                     Status = linked ? "ConversationLinkedSuccessfully" : "ConversationLinkFailed",
-                    ConversationMessageId = ConversationContext.ConversationMessageId.Value,
+                    ConversationMessageId = convId.Value,
                     BotChatMessageId = chatMessage.Id,
                     TemporaryMessageId = chatMessage.MessageId,
                     Note = "Using temporary MessageId as real MessageId is not available via IRC for bot's own messages"
                 });
                 
                 // Очищаем контекст после использования
-                ConversationContext.ConversationMessageId = null;
+                if (!conversationMessageId.HasValue)
+                {
+                    ConversationContext.ConversationMessageId = null;
+                }
             }
             else
             {
@@ -162,7 +166,8 @@ internal sealed class TwitchIntegrationService : ITwitchIntegrationService, IDis
                     Method = nameof(SaveBotMessageAsync),
                     Status = "BotMessageSavedWithoutConversationLink",
                     BotChatMessageId = chatMessage.Id,
-                    TemporaryMessageId = chatMessage.MessageId
+                    TemporaryMessageId = chatMessage.MessageId,
+                    ConversationMessageIdProvided = conversationMessageId.HasValue
                 });
             }
         }
@@ -254,7 +259,7 @@ internal sealed class TwitchIntegrationService : ITwitchIntegrationService, IDis
                     }
                    
                     // Сохраняем сообщение бота с временным MessageId для reply
-                    await SaveBotMessageAsync(response.Message);
+                    await SaveBotMessageAsync(response.Message, response.ConversationMessageId);
                     
                     return new LSResponse<Domain.Entites.ChatMessage?>().Success(null);
                 }

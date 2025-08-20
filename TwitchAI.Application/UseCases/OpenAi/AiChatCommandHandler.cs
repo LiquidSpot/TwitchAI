@@ -86,6 +86,18 @@ namespace TwitchAI.Application.UseCases.OpenAi
                             ReplyLimit = replyLimit,
                             ContextMessagesCount = conversationContext.Count
                         });
+
+                        // Если reply-контекст пуст, откатываемся к обычному контексту пользователя
+                        if (conversationContext.Count == 0)
+                        {
+                            conversationContext = await _twitchUserService.GetUserConversationContextAsync(user.Id, limit: 3, cancellationToken);
+                            _logger.LogInformation(new {
+                                Method = nameof(Handle),
+                                Status = "FallbackToUserContext",
+                                UserId = request.userId,
+                                ContextMessagesCount = conversationContext.Count
+                            });
+                        }
                     }
                     else
                     {
