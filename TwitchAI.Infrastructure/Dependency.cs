@@ -78,6 +78,7 @@ public static class Dependency
             services.AddScoped<IIntegrationCheckService, IntegrationCheckService>();
             services.AddScoped<ICredentialProtector, CredentialProtector>();
             services.AddScoped<IBotSettingsService, BotSettingsService>();
+            services.AddScoped<IViewerActivityService, ViewerActivityService>();
             services.AddHostedService<ViewerMonitoringBackgroundService>();
 
             return services;

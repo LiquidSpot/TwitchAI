@@ -1,4 +1,6 @@
 import { useNavigate, useLocation } from '@solidjs/router'
+import { createStore } from 'solid-js/store'
+import { clearTokens, getAccessToken } from './lib/auth'
 import { BRAND_ICON, BRAND_NAME } from './utils/brand'
 import Login from './pages/Login'
 import Settings from './pages/Settings'
@@ -10,13 +12,21 @@ import Footer from './components/Footer'
 import Register from './pages/Register'
 import ResetPassword from './pages/ResetPassword'
 import { ToastHost } from './lib/toast'
+import loadingIcon from './img/loading.png'
+
 
 type Props = { children?: any }
 
 export default function App(props: Props) {
   const navigate = useNavigate()
-  const token = () => localStorage.getItem('access_token')
   const location = useLocation()
+  const [ui, setUi] = createStore({ authVersion: 0, loggingOut: false })
+  const isAuthed = () => (ui.authVersion, !!getAccessToken())
+
+  if (typeof window !== 'undefined') {
+    const handler = () => setUi('authVersion', ui.authVersion + 1)
+    window.addEventListener('auth-changed', handler)
+  }
 
   return (
     <div class="min-h-screen text-white">
@@ -36,18 +46,18 @@ export default function App(props: Props) {
 			</div>
 
 			{/* Приватные (видны только после входа) */}
-			{token() && (
+			{isAuthed() && (
 				<>
 					<div class="mx-2 h-6 w-px bg-slate-700" />
 					<div class="flex items-center gap-2">
 						<button class="btn btn-secondary" onClick={() => navigate('/dashboard')}>Дашборд</button>
 						<button class="btn btn-secondary" onClick={() => navigate('/integrations')}>Интеграции</button>
 						<button class="btn btn-primary" onClick={() => navigate('/settings')}>Настройки</button>
-						<button class="btn btn-secondary" onClick={() => { localStorage.removeItem('access_token'); navigate('/login') }}>Выйти</button>
+						<button class="btn btn-secondary" onClick={async () => { setUi('loggingOut', true); await new Promise(res => requestAnimationFrame(() => setTimeout(res, 800))); clearTokens(); setUi('authVersion', ui.authVersion + 1); navigate('/login'); setUi('loggingOut', false) }}>Выйти</button>
 					</div>
 				</>
 			)}
-			{!token() && (
+			{!isAuthed() && (
 				<>
 					<div class="mx-2 h-6 w-px bg-slate-700" />
 					<button class="btn btn-primary" onClick={() => navigate('/login')}>Войти</button>
@@ -61,9 +71,7 @@ export default function App(props: Props) {
         <div
           class="route-fade"
           ref={el => {
-            // force reflow to restart transition
-            // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-            (el as HTMLElement).offsetHeight
+            ;(el as HTMLElement).offsetHeight
             requestAnimationFrame(() => el.classList.add('route-fade-show'))
           }}
           data-path={location.pathname}
@@ -73,6 +81,11 @@ export default function App(props: Props) {
       </main>
       <Footer />
       <ToastHost />
+      {ui.loggingOut && (
+        <div class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center">
+          <img src={loadingIcon} alt="loading" class="h-32 w-32 spin-slow" />
+        </div>
+      )}
     </div>
   )
 }

@@ -6,6 +6,8 @@ using Common.Packages.Response.Models;
 using Microsoft.AspNetCore.Http;
 using Common.Packages.Response.Services.Interfaces;
 using Common.Packages.Logger.Services.Interfaces;
+using TwitchAI.Application.Dto.Response.Activity;
+using TwitchAI.Application.UseCases.Viewers;
 
 namespace TwitchAI.Api.Controllers.v1;
 
@@ -40,6 +42,18 @@ public class ViewersController : ControllerBase
         var response = await _mediator.Send(cmd, ct);
         _logger.LogInformation(new { Response = response });
         return _response.GetResponse(response);
+    }
+
+    /// <summary>
+    /// Заглушка данных активности для UI (онлайн-график и команды ИИ).
+    /// </summary>
+    [HttpGet("activity")]
+    [ProducesResponseType(typeof(LSResponse<DashboardActivityResponseDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetActivity([FromQuery] Guid userId, CancellationToken ct = default)
+    {
+        _logger.LogInformation(new { UserId = userId });
+        var resp = await _mediator.Send(new ViewerActivityQuery(userId), ct);
+        return _response.GetResponse(resp);
     }
 }
 

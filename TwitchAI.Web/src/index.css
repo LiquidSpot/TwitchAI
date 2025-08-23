@@ -4,6 +4,12 @@
 @tailwind utilities;
 
 html, body, #root { height: 100%; }
+html {
+  /* Всегда резервируем место под вертикальный скроллбар, чтобы не было дёрганий между страницами */
+  overflow-y: scroll;
+  /* Современный способ стабилизировать полосу прокрутки на обеих сторонах (для RTL/LTR) */
+  scrollbar-gutter: stable both-edges;
+}
 body {
   @apply bg-slate-900 text-slate-100;
   /* layered background: soft gradients over parallax image */
@@ -39,6 +45,16 @@ body {
 
 .input {
   @apply w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl outline-none focus:ring-2 focus:ring-accent placeholder-slate-400;
+}
+
+/* dark select menu (options list) */
+.select-dark {
+  background-color: rgba(15,23,42,0.98); /* slate-900 */
+  color: #fff;
+}
+.select-dark option, .select-dark optgroup {
+  background-color: rgba(15,23,42,0.98);
+  color: #fff;
 }
 
 /* reveal-on-scroll */
@@ -102,3 +118,11 @@ body {
 .card-secondary:hover { @apply bg-white/20 border-white/20; }
 
 
+/* smooth spin for loading icon */
+.spin-slow {
+  animation: spin-slow 1s linear infinite;
+}
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

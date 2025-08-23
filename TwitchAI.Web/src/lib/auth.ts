@@ -36,6 +36,7 @@ export function saveTokens(access?: string | null, refresh?: string | null) {
     if (refresh) localStorage.setItem('refresh_token', refresh)
     else localStorage.removeItem('refresh_token')
   }
+  try { window.dispatchEvent(new Event('auth-changed')) } catch {}
 }
 
 export function clearTokens() {
@@ -43,6 +44,7 @@ export function clearTokens() {
   memoryRefreshToken = null
   localStorage.removeItem('access_token')
   localStorage.removeItem('refresh_token')
+  try { window.dispatchEvent(new Event('auth-changed')) } catch {}
 }
 
 

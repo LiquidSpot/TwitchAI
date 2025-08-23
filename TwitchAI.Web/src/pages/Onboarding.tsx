@@ -39,6 +39,10 @@ export default function Onboarding() {
     openaiSuccess: false as boolean,
     saving: false as boolean,
     saveOk: null as null | boolean,
+    activityLoading: false as boolean,
+    activityLabels: [] as string[],
+    activitySamples: [] as number[],
+    activityCommands: [] as string[],
   })
 
   const saveDraft = () => {
@@ -53,7 +57,11 @@ export default function Onboarding() {
         try { setState(JSON.parse(saved)) } catch {}
       }
       const uid0 = getCurrentUserId()
-      if (uid0) setState('userId', uid0)
+      if (uid0) {
+        setState('userId', uid0)
+        // пропускаем шаг 0, т.к. пользователь уже авторизован
+        setState('step', 1 as Step)
+      }
       const uid = (state as any).userId as string
       if (uid) {
         api.get('/v1.0/user-settings', { params: { userId: uid } })
@@ -77,6 +85,20 @@ export default function Onboarding() {
             }
           })
           .catch(() => {})
+
+        // подтянуть заглушечную активность
+        setState('activityLoading', true)
+        api.get('/v1.0/viewers/activity', { params: { userId: uid } })
+          .then(({ data }) => {
+            const a = data?.result ?? data?.data ?? null
+            if (a) {
+              setState('activityLabels', Array.isArray(a.labels) ? a.labels : [])
+              setState('activitySamples', Array.isArray(a.onlineSamples) ? a.onlineSamples : [])
+              setState('activityCommands', Array.isArray(a.aiCommands) ? a.aiCommands : [])
+            }
+          })
+          .catch(() => {})
+          .finally(() => setState('activityLoading', false))
       }
       saveDraft()
     } catch {}
@@ -84,7 +106,7 @@ export default function Onboarding() {
 
   const total = 6
   const next = () => { setState('step', Math.min(state.step + 1, total - 1) as Step); saveDraft() }
-  const prev = () => { setState('step', Math.max(state.step - 1, 0) as Step); saveDraft() }
+  const prev = () => { setState('step', Math.max(state.step - 1, 1) as Step); saveDraft() }
 
   const doCheckTwitch = async () => {
     setState('twitchChecking', true)
