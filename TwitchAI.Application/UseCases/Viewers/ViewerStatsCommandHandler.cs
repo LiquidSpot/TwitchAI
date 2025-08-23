@@ -35,9 +35,10 @@ namespace TwitchAI.Application.UseCases.Viewers
                 CommandType = request.CommandType
             });
 
+            var result = new LSResponse<string>();
+
             try
             {
-                var result = new LSResponse<string>();
                 var channelName = _twitchConfig.ChannelName;
 
                 switch (request.CommandType.ToLower())
@@ -82,7 +83,7 @@ namespace TwitchAI.Application.UseCases.Viewers
                     StackTrace = ex.StackTrace
                 });
 
-                return new LSResponse<string>().Error(BaseErrorCodes.OperationProcessError, "Произошла ошибка при получении статистики зрителей.");
+                return result.Error(BaseErrorCodes.OperationProcessError, "Произошла ошибка при получении статистики зрителей.");
             }
         }
     }

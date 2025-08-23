@@ -30,9 +30,10 @@ namespace TwitchAI.Application.UseCases.Holidays
                 Date = request.Date
             });
 
+            var result = new LSResponse<string>();
+
             try
             {
-                var result = new LSResponse<string>();
                 var targetDate = request.Date ?? DateTime.Today;
 
                 // Получаем праздник дня с переводом на русский язык
@@ -76,7 +77,7 @@ namespace TwitchAI.Application.UseCases.Holidays
                     StackTrace = ex.StackTrace
                 });
 
-                return new LSResponse<string>().Error(BaseErrorCodes.OperationProcessError, "Произошла ошибка при получении праздника дня.");
+                return result.Error(BaseErrorCodes.OperationProcessError, "Произошла ошибка при получении праздника дня.");
             }
         }
     }

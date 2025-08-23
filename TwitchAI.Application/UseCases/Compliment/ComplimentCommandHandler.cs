@@ -15,7 +15,6 @@ namespace TwitchAI.Application.UseCases.Compliment
         private readonly IOpenAiService _openAiService;
         private readonly ITwitchUserService _twitchUserService;
         private readonly IExternalLogger<ComplimentCommandHandler> _logger;
-        private static readonly Random _random = new();
         
         // Резервные комплименты на случай сбоя OpenAI
         private static readonly string[] BackupCompliments = 
@@ -45,9 +44,10 @@ namespace TwitchAI.Application.UseCases.Compliment
                 TargetUsername = request.TargetUsername
             });
 
+            var result = new LSResponse<string>();
+
             try
             {
-                var result = new LSResponse<string>();
                 string targetName;
                 
                 // Определяем цель комплимента
@@ -107,7 +107,7 @@ namespace TwitchAI.Application.UseCases.Compliment
                     StackTrace = ex.StackTrace
                 });
 
-                return new LSResponse<string>().Error(BaseErrorCodes.OperationProcessError, "Произошла ошибка при генерации комплимента.");
+                return result.Error(BaseErrorCodes.OperationProcessError, "Произошла ошибка при генерации комплимента.");
             }
         }
 
@@ -171,7 +171,7 @@ namespace TwitchAI.Application.UseCases.Compliment
         /// </summary>
         private static string GetRandomBackupCompliment()
         {
-            return BackupCompliments[_random.Next(BackupCompliments.Length)];
+            return BackupCompliments[Random.Shared.Next(BackupCompliments.Length)];
         }
     }
 } 

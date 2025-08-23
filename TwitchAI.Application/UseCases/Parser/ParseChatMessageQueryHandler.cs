@@ -80,13 +80,7 @@ internal class ParseChatMessageQueryHandler : IQueryHandler<ParseChatMessageQuer
                     });
 
                     // Создаем UserMessage для продолжения существующего диалога
-                    var userMessage = new UserMessage 
-                    { 
-                        message = txt,
-                        role = _botRoleService.GetCurrentRole(),
-                        temp = _appConfig.OpenAi.Temperature,
-                        maxToken = _appConfig.OpenAi.MaxTokens
-                    };
+                    var userMessage = CreateUserMessage(txt);
 
                     // Создаем AiChatCommand с указанием на существующий диалог
                     return new AiChatCommand(userMessage, query.userId, null);
@@ -102,13 +96,7 @@ internal class ParseChatMessageQueryHandler : IQueryHandler<ParseChatMessageQuer
                     });
 
                     // Создаем новый диалог с OpenAI
-                    var userMessage = new UserMessage 
-                    { 
-                        message = txt,
-                        role = _botRoleService.GetCurrentRole(),
-                        temp = _appConfig.OpenAi.Temperature,
-                        maxToken = _appConfig.OpenAi.MaxTokens
-                    };
+                    var userMessage = CreateUserMessage(txt);
 
                     return new AiChatCommand(userMessage, query.userId, null);
                 }
@@ -139,13 +127,7 @@ internal class ParseChatMessageQueryHandler : IQueryHandler<ParseChatMessageQuer
             });
 
             // Создаем UserMessage для обработки mention
-            var userMessage = new UserMessage 
-            { 
-                message = txt,
-                role = _botRoleService.GetCurrentRole(),
-                temp = _appConfig.OpenAi.Temperature,
-                maxToken = _appConfig.OpenAi.MaxTokens
-            };
+            var userMessage = CreateUserMessage(txt);
 
             return new AiChatCommand(userMessage, query.userId, null);
         }
@@ -338,5 +320,16 @@ internal class ParseChatMessageQueryHandler : IQueryHandler<ParseChatMessageQuer
         };
         
         return aiKeywords.Any(keyword => lowerMessage.Contains(keyword));
+    }
+
+    private UserMessage CreateUserMessage(string text)
+    {
+        return new UserMessage
+        {
+            message = text,
+            role = _botRoleService.GetCurrentRole(),
+            temp = _appConfig.OpenAi.Temperature,
+            maxToken = _appConfig.OpenAi.MaxTokens
+        };
     }
 }

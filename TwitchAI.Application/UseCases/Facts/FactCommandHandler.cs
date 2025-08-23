@@ -18,7 +18,7 @@ namespace TwitchAI.Application.UseCases.Facts
         private static readonly Dictionary<string, DateTime> _lastUsage = new();
         private static readonly object _lockObject = new();
         private static readonly TimeSpan _cooldown = TimeSpan.FromMinutes(1);
-        private static readonly Random _random = new();
+        // Используем потокобезопасный общий генератор случайных чисел
         
         // Статическое хранилище фактов в памяти
         private static List<FactItem>? _cachedFacts = null;
@@ -195,9 +195,10 @@ namespace TwitchAI.Application.UseCases.Facts
                 UserId = request.UserId
             });
 
+            var result = new LSResponse<string>();
+
             try
             {
-                var result = new LSResponse<string>();
                 var cooldownKey = "facts"; // Общий кулдаун для всех пользователей
 
                 // Проверяем кулдаун
@@ -266,7 +267,7 @@ namespace TwitchAI.Application.UseCases.Facts
                 }
 
                 // Выбираем случайный факт из доступных
-                var selectedFactItem = availableFacts[_random.Next(availableFacts.Count)];
+                var selectedFactItem = availableFacts[Random.Shared.Next(availableFacts.Count)];
                 
                 // Отмечаем факт как использованный
                 selectedFactItem.MarkAsUsed();
@@ -301,7 +302,7 @@ namespace TwitchAI.Application.UseCases.Facts
                     StackTrace = ex.StackTrace
                 });
 
-                return new LSResponse<string>().Error(BaseErrorCodes.OperationProcessError, "Произошла ошибка при получении факта.");
+                return result.Error(BaseErrorCodes.OperationProcessError, "Произошла ошибка при получении факта.");
             }
         }
     }

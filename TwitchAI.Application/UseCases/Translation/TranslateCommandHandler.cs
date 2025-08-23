@@ -42,9 +42,10 @@ namespace TwitchAI.Application.UseCases.Translation
                 Message = request.Message
             });
 
+            var result = new LSResponse<string>();
+
             try
             {
-                var result = new LSResponse<string>();
 
                 // Проверяем поддерживаемые языки
                 if (!SupportedLanguages.TryGetValue(request.Language.ToLower(), out var languageName))
@@ -125,7 +126,7 @@ namespace TwitchAI.Application.UseCases.Translation
                     StackTrace = ex.StackTrace
                 });
 
-                return new LSResponse<string>().Error(BaseErrorCodes.OperationProcessError, "Произошла ошибка при обработке команды перевода.");
+                return result.Error(BaseErrorCodes.OperationProcessError, "Произошла ошибка при обработке команды перевода.");
             }
         }
     }
